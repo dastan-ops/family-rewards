@@ -1,0 +1,44 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # CI: проверяем код. Если хоть один шаг красный — на сервер ничего не уедет.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Синтаксис Python
+        run: python -m py_compile app.py i18n.py
+      - name: Переводы RU и KK совпадают
+        run: python tests/check_i18n.py
+      - name: Docker-образ собирается
+        run: docker build -t family-rewards:ci .
+
+  # CD: заходим на сервер по SSH и запускаем deploy.sh
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    steps:
+      - name: Выкатка на сервер
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          HOST: ${{ secrets.SERVER_HOST }}
+          USER_NAME: ${{ secrets.SERVER_USER }}
+          PROJECT_DIR: ${{ secrets.SERVER_PROJECT_DIR }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy "$USER_NAME@$HOST" "cd '$PROJECT_DIR' && bash deploy.sh"
