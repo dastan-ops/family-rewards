@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd3ea"/><stop offset="1" stop-color="#d8c9ff"/></linearGradient>
+<g id="c" fill="#fff" opacity=".9"><circle r="30"/><circle cx="38" cy="-14" r="38"/><circle cx="80" r="30"/><rect y="0" width="80" height="30"/></g>
+<path id="h" d="M0 14C-34-10-16-32 0-14 16-32 34-10 0 14Z"/>
+<path id="s" d="M0-20 6-7 20-7 9 2 13 17 0 9-13 17-9 2-20-7-6-7Z"/>
+</defs>
+<rect width="1200" height="800" fill="url(#g)"/>
+<g fill="none" stroke-width="16" opacity=".55"><path d="M120 520A300 300 0 0 1 720 520" stroke="#ff8fb8"/><path d="M136 520A284 284 0 0 1 704 520" stroke="#ffd27f"/><path d="M152 520A268 268 0 0 1 688 520" stroke="#9be7c4"/><path d="M168 520A252 252 0 0 1 672 520" stroke="#9ec5ff"/></g>
+<use href="#c" x="60" y="540"/><use href="#c" x="620" y="540"/><use href="#c" x="880" y="180"/><use href="#c" x="180" y="120" transform="scale(.8)"/><use href="#c" x="1000" y="640"/>
+<g fill="#ff7fb0" opacity=".55"><use href="#h" x="900" y="420"/><use href="#h" x="1080" y="120" transform="rotate(12 1080 120)"/><use href="#h" x="80" y="300"/><use href="#h" x="470" y="90"/><use href="#h" x="760" y="700"/></g>
+<g fill="#fff" opacity=".9"><use href="#s" x="300" y="200"/><use href="#s" x="700" y="130"/><use href="#s" x="1120" y="380"/><use href="#s" x="240" y="700"/><use href="#s" x="560" y="330"/></g>
+<g fill="#ffe27a" opacity=".85"><use href="#s" x="980" y="300"/><use href="#s" x="120" y="440"/><use href="#s" x="420" y="640"/></g>
+</svg>

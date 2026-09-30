@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Rewards</title>
+<style>
+:root { --accent:#27ae60; --primary:#3498db; --card-bg:rgba(255,255,255,.9); --text-color:#2d3436;
+        --line:rgba(0,0,0,.1); --field-bg:#fff; --veil:rgba(255,255,255,.12); --bgimg:none; }
+body.theme-kawaii    { --accent:#ff6fa5; --primary:#a56bff; --bgimg:url(/static/themes/kawaii.svg); }
+body.theme-cyberpunk { --accent:#0fb5c7; --primary:#a855f7; --bgimg:url(/static/themes/cyberpunk.svg); }
+body.theme-minecraft { --accent:#3f9b3a; --primary:#c0392b; --bgimg:url(/static/themes/minecraft.svg); }
+body.dark-mode { --card-bg:rgba(20,20,28,.9); --text-color:#ececf1; --line:rgba(255,255,255,.14);
+                 --field-bg:rgba(0,0,0,.4); --veil:rgba(0,0,0,.5); }
+
+* { box-sizing:border-box; }
+html { background:#e9e6f0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:var(--text-color);
+       margin:0; padding:10px; max-width:820px; margin-inline:auto; min-height:100vh; }
+body::before { content:''; position:fixed; inset:0; z-index:-2; background:var(--bgimg) center/cover no-repeat; }
+body::after  { content:''; position:fixed; inset:0; z-index:-1; background:var(--veil); transition:background .3s; }
+
+.card { background:var(--card-bg); padding:15px; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.12); margin-bottom:14px; }
+.card h3 { margin:0 0 10px; }
+.nav-bar { display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--card-bg);
+           padding:10px 14px; border-radius:14px; margin-bottom:14px; box-shadow:0 2px 10px rgba(0,0,0,.12); }
+.nav-bar .right { display:flex; align-items:center; gap:12px; }
+.nav-bar a { color:#e74c3c; text-decoration:none; font-weight:bold; }
+
+.login-container { display:flex; align-items:center; justify-content:center; min-height:85vh; }
+.login-card { background:var(--card-bg); padding:25px; border-radius:16px; width:100%; max-width:350px; text-align:center; border-top:5px solid var(--accent); }
+.login-card input { font-size:24px; text-align:center; letter-spacing:5px; margin:15px 0; }
+
+button, .btn { border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:bold; color:#fff; font-size:14px; }
+.btn-main { background:var(--accent); width:100%; padding:14px; font-size:18px; }
+.btn-blue { background:var(--primary); } .btn-red { background:#e74c3c; } .btn-green { background:var(--accent); } .btn-gray { background:#7f8c8d; }
+.btn-icon { background:transparent; font-size:22px; padding:2px 6px; color:inherit; }
+input, select { width:100%; padding:10px; margin-bottom:8px; border:1px solid var(--line); border-radius:8px; background:var(--field-bg); color:var(--text-color); font-size:16px; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+.tabs { display:flex; gap:6px; margin-bottom:14px; overflow-x:auto; padding-bottom:4px; }
+.tab-btn { background:var(--card-bg); color:var(--text-color); border:1px solid var(--line); white-space:nowrap; }
+.tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.tab-content { display:none; } .tab-content.active { display:block; }
+
+.list-row { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; padding:9px 0; border-bottom:1px solid var(--line); }
+.list-row:last-child { border-bottom:none; }
+.muted { opacity:.65; font-size:12px; }
+
+.av { border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; }
+.av-emoji { display:inline-flex; align-items:center; justify-content:center; line-height:1; vertical-align:middle; }
+.members { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
+.member { border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
+.badge { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; background:var(--primary); color:#fff; }
+.coins { color:var(--accent); font-weight:900; font-size:20px; }
+
+.themes { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; }
+.theme-tile { height:90px; border-radius:12px; background-size:cover; background-position:center; cursor:pointer;
+              display:flex; align-items:flex-end; padding:6px; color:#fff; font-weight:bold; font-size:13px;
+              text-shadow:0 1px 3px rgba(0,0,0,.8); border:3px solid transparent; }
+.theme-tile.active { border-color:var(--accent); box-shadow:0 0 0 2px var(--card-bg) inset; }
+
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:14px; z-index:10; }
+.modal.open { display:flex; }
+.modal .card { width:100%; max-width:420px; max-height:92vh; overflow-y:auto; margin:0; }
+.count { background:#e74c3c; color:#fff; border-radius:10px; padding:0 7px; font-size:12px; margin-left:4px; }
+.bar { height:16px; background:var(--line); border-radius:9px; overflow:hidden; margin:8px 0 4px; }
+.bar > i { display:block; height:100%; background:var(--accent); transition:width .4s; }
+.wdbox { display:none; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.wdbox label { display:flex; align-items:center; gap:3px; font-size:14px; }
+.wdbox input { width:auto; margin:0; }
+.pill { font-size:12px; padding:2px 8px; border-radius:10px; background:var(--line); white-space:nowrap; }
+.pill.approved { background:var(--accent); color:#fff; } .pill.rejected { background:#e74c3c; color:#fff; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+.lang { display:inline-flex; gap:2px; }
+.lang-btn { color:#fff; border:2px solid transparent; padding:3px 8px; font-size:12px; border-radius:6px; opacity:.55; }
+.lang-btn[data-lang="kk"] { background:#00afca; }   /* небесно-голубой, как на флаге Казахстана */
+.lang-btn[data-lang="ru"] { background:#d52b1e; }   /* красный */
+.lang-btn.active { opacity:1; border-color:var(--text-color); box-shadow:0 0 0 1px var(--card-bg) inset; }
+label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
+</style>
+</head>
+
+{# Аватар: фото, если загружено, иначе эмодзи #}
+{% macro av(u, size=40) -%}
+{% if u.avatar_img -%}<img class="av" src="/avatars/{{ u.avatar_img }}" width="{{ size }}" height="{{ size }}" alt="">
+{%- else -%}<span class="av-emoji" style="width:{{ size }}px;height:{{ size }}px;font-size:{{ (size*0.75)|int }}px">{{ u.avatar }}</span>{%- endif %}
+{%- endmacro %}
+
+{% macro lang_switch() %}<span class="lang">{% for code, label in langs.items() %}<button class="lang-btn {{ 'active' if code == lang }}" data-lang="{{ code }}" onclick="setLang('{{ code }}')">{{ label }}</button>{% endfor %}</span>{% endmacro %}
+
+{% macro theme_picker(me) %}
+<div class="themes">
+  {% for key, label in [('kawaii','🦄 Kawaii'), ('cyberpunk','🌆 Cyberpunk'), ('minecraft','⛏️ Minecraft')] %}
+  <div class="theme-tile {{ 'active' if me.theme == key }}" data-theme="{{ key }}"
+       style="background-image:url(/static/themes/{{ key }}.svg)" onclick="setTheme('{{ key }}')">{{ label }}</div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+<body class="theme-{{ me.theme if me else 'kawaii' }}{{ ' dark-mode' if me and me.dark_mode }}">
+
+{% if not me %}
+  <div class="login-container">
+    <div class="login-card">
+      <div style="text-align:right">{{ lang_switch() }}</div>
+      <h2>{{ t('login.title') }}</h2>
+      <form action="/login" method="POST">
+        <input type="password" name="pin" maxlength="4" inputmode="numeric" placeholder="****" required autofocus>
+        <button type="submit" class="btn-main">{{ t('login.button') }}</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <div class="nav-bar">
+    <label style="cursor:pointer;display:flex;align-items:center;gap:8px" title="{{ t('nav.change_photo') }}">
+      {{ av(me, 38) }} <b>{{ me.name }}</b>
+      <input type="file" accept="image/*" hidden onchange="uploadAvatar(this, null)">
+    </label>
+    <div class="right">
+      {{ lang_switch() }}
+      <button class="btn-icon" id="darkBtn" onclick="toggleDark()" title="{{ t('nav.day_night') }}">{{ '☀️' if me.dark_mode else '🌙' }}</button>
+      <a href="/logout">{{ t('nav.logout') }}</a>
+    </div>
+  </div>
+
+  {% if me.role == 'admin' %}
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-members" onclick="switchTab('tab-members')">{{ t('tab.members') }}</button>
+    <button class="tab-btn" data-tab="tab-requests" onclick="switchTab('tab-requests')">{{ t('tab.requests') }}<span class="count" id="reqCount" style="{{ '' if pending_count else 'display:none' }}">{{ pending_count }}</span></button>
+    <button class="tab-btn" data-tab="tab-tasks" onclick="switchTab('tab-tasks')">{{ t('tab.tasks') }}</button>
+    <button class="tab-btn" data-tab="tab-fines" onclick="switchTab('tab-fines')">{{ t('tab.fines') }}</button>
+    <button class="tab-btn" data-tab="tab-shop" onclick="switchTab('tab-shop')">{{ t('tab.shop') }}</button>
+    <button class="tab-btn" data-tab="tab-history" onclick="switchTab('tab-history')">{{ t('tab.logs') }}</button>
+    <button class="tab-btn" data-tab="tab-look" onclick="switchTab('tab-look')">{{ t('tab.look') }}</button>
+  </div>
+
+  <!-- УЧАСТНИКИ -->
+  <div id="tab-members" class="tab-content active">
+    <div class="card">
+      <h3>{{ t('members.title') }}</h3>
+      <div class="members">
+        {% for m in members %}
+        <div class="member">
+          {{ av(m, 56) }}
+          <div><b>{{ m.name }}</b></div>
+          <span class="badge">{{ t('role.admin') if m.role == 'admin' else t('role.kid') }}</span>
+          <div class="muted">{% if m.age %}{{ t('age_years', age=m.age) }}{% endif %}{% if m.gender %} · {{ t('gender.short_male') if m.gender == 'male' else t('gender.short_female') }}{% endif %}</div>
+          <div class="coins">{{ m.balance }} 🪙</div>
+          <button class="btn-blue" style="margin-top:6px;font-size:12px" onclick='openEdit({{ m|tojson }})'>{{ t('btn.edit') }}</button>
+          {% if m.id != me.id %}<button class="btn-red" style="margin-top:6px;font-size:12px" onclick='delMember({{ m.id }}, {{ m.name|tojson }})'>🗑</button>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <h3>{{ t('members.add') }}</h3>
+      <input id="nuName" placeholder="{{ t('ph.name') }}">
+      <div class="row2">
+        <input id="nuPin" type="password" maxlength="4" inputmode="numeric" placeholder="{{ t('ph.pin') }}">
+        <input id="nuAge" type="number" min="0" max="120" placeholder="{{ t('ph.age') }}">
+      </div>
+      <div class="row2">
+        <select id="nuRole"><option value="kid">{{ t('role.kid') }}</option><option value="admin">{{ t('role.admin') }}</option></select>
+        <select id="nuGender"><option value="female">{{ t('gender.female') }}</option><option value="male">{{ t('gender.male') }}</option></select>
+      </div>
+      <input id="nuAvatar" placeholder="{{ t('ph.avatar_emoji') }}">
+      <button class="btn-green" style="width:100%" onclick="addUser()">{{ t('btn.create_profile') }}</button>
+    </div>
+  </div>
+
+  <!-- ЗАЯВКИ -->
+  <div id="tab-requests" class="tab-content">
+    <div class="card">
+      <h3>{{ t('requests.tasks') }}</h3>
+      {% for r in req_tasks %}
+      <div class="list-row">
+        <div><b>{{ r.kid }}</b> · {{ r.task_name }} <span style="color:var(--accent)">+{{ r.reward }} 🪙</span><br><span class="muted">{{ r.ts }}</span></div>
+        <div><button class="btn-green" onclick="decide('completion', {{ r.id }}, true)">{{ t('btn.approve') }}</button>
+             <button class="btn-red" onclick="decide('completion', {{ r.id }}, false)">{{ t('btn.reject') }}</button></div>
+      </div>
+      {% else %}<div class="muted">{{ t('requests.empty') }}</div>{% endfor %}
+    </div>
+    <div class="card">
+      <h3>{{ t('requests.purchases') }}</h3>
+      {% for r in req_buys %}
+      <div class="list-row">
+        <div><b>{{ r.kid }}</b> {{ t('requests.wants_buy') }} {{ r.icon }} {{ r.reward_name }} <span style="color:#e74c3c">−{{ r.cost }} 🪙</span><br>
+             <span class="muted">{{ t('requests.balance') }}: {{ r.balance }} 🪙 · {{ r.ts }}</span></div>
+        <div><button class="btn-green" onclick="decide('purchase', {{ r.id }}, true)">{{ t('btn.approve') }}</button>
+             <button class="btn-red" onclick="decide('purchase', {{ r.id }}, false)">{{ t('btn.reject') }}</button></div>
+      </div>
+      {% else %}<div class="muted">{{ t('requests.empty') }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <!-- ЗАДАЧИ -->
+  <div id="tab-tasks" class="tab-content">
+    <div class="card">
+      <h3>{{ t('tasks.new') }}</h3>
+      <input id="taskName" placeholder="{{ t('ph.task_name') }}">
+      <input id="taskReward" type="number" min="1" placeholder="{{ t('ph.task_reward') }}">
+      <div class="row2">
+        <div><label class="field">{{ t('tasks.repeat') }}</label>
+          <select id="taskKind" onchange="kindChanged()">
+            <option value="daily">{{ t('kind.daily') }}</option><option value="weekly">{{ t('kind.weekly') }}</option><option value="once">{{ t('kind.once') }}</option>
+          </select></div>
+        <div><label class="field">{{ t('tasks.assignee') }}</label>
+          <select id="taskAssignee"><option value="">{{ t('assignee.all') }}</option>
+            {% for k in kids %}<option value="{{ k.id }}">{{ k.name }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="wdbox" id="wdBox">{% for i in range(7) %}<label><input type="checkbox" class="wd" value="{{ i }}"> {{ t('wd.' ~ i) }}</label>{% endfor %}</div>
+      <button class="btn-green" style="width:100%" onclick="addTask()">{{ t('btn.add_task') }}</button>
+    </div>
+    <div class="card">
+      <h3>{{ t('tasks.list') }}</h3>
+      {% for task in tasks %}
+      <div class="list-row">
+        <div><b>{{ task.name }}</b> <span style="color:var(--accent)">+{{ task.reward }} 🪙</span><br>
+          <span class="muted">{{ t('kind.' ~ task.kind) }}{% if task.kind == 'weekly' %}: {% for d in task.days %}{{ t('wd.' ~ d) }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
+            · {{ task.assignee_name or t('assignee.all') }}</span></div>
+        <div>
+          <span class="muted">{{ t('tasks.award_now') }}</span>
+          {% for k in kids %}<button class="btn-blue" style="font-size:12px;padding:5px 8px" onclick="award({{ k.id }}, {{ task.id }})">⚡ {{ k.name }}</button> {% endfor %}
+          <button class="btn-red" onclick="del('/delete_task', {{ task.id }}, T['confirm.delete_task'])">🗑</button>
+        </div>
+      </div>
+      {% else %}<div class="muted">{{ t('tasks.empty') }}</div>{% endfor %}
+    </div>
+    <div class="card">
+      <h3>{{ t('streak.title') }}</h3>
+      <p class="muted">{{ t('streak.hint') }}</p>
+      <div class="row2">
+        <div><label class="field">{{ t('streak.days') }}</label><input id="stDays" type="number" min="1" max="30" value="{{ streak.days }}"></div>
+        <div><label class="field">{{ t('streak.bonus') }}</label><input id="stBonus" type="number" min="0" max="1000" value="{{ streak.bonus }}"></div>
+      </div>
+      <button class="btn-green" style="width:100%" onclick="saveStreak()">{{ t('btn.save') }}</button>
+    </div>
+  </div>
+
+  <!-- ШТРАФЫ -->
+  <div id="tab-fines" class="tab-content">
+    <div class="card">
+      <h3>{{ t('fines.new') }}</h3>
+      <input id="fineName" placeholder="{{ t('ph.fine_name') }}">
+      <input id="fineAmount" type="number" min="1" placeholder="{{ t('ph.fine_amount') }}">
+      <button class="btn-green" style="width:100%" onclick="addFine()">{{ t('btn.create_fine') }}</button>
+    </div>
+    <div class="card">
+      <h3>{{ t('fines.apply') }}</h3>
+      <label class="field">{{ t('fines.to_whom') }}</label>
+      <select id="fineTarget">{% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select>
+      {% for f in fines %}
+      <div class="list-row">
+        <div><b>{{ f.name }}</b> <span style="color:#e74c3c">−{{ f.amount }} 🪙</span></div>
+        <div>
+          <button class="btn-red" onclick="applyFine({{ f.id }})">{{ t('btn.apply') }}</button>
+          <button class="btn-gray" onclick="del('/delete_fine', {{ f.id }}, T['confirm.delete_fine'])">🗑</button>
+        </div>
+      </div>
+      {% else %}<div class="muted">{{ t('fines.empty') }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <!-- МАГАЗИН -->
+  <div id="tab-shop" class="tab-content">
+    <div class="card">
+      <h3>{{ t('shop.add') }}</h3>
+      <input id="rewName" placeholder="{{ t('ph.reward_name') }}">
+      <div class="row2">
+        <input id="rewCost" type="number" min="1" placeholder="{{ t('ph.reward_cost') }}">
+        <input id="rewIcon" placeholder="{{ t('ph.icon') }}">
+      </div>
+      <button class="btn-green" style="width:100%" onclick="addReward()">{{ t('btn.add_to_shop') }}</button>
+    </div>
+    <div class="card">
+      <h3>{{ t('shop.assortment') }}</h3>
+      {% for r in rewards %}
+      <div class="list-row">
+        <div>{{ r.icon }} <b>{{ r.name }}</b> — {{ r.cost }} 🪙</div>
+        <button class="btn-red" onclick="del('/delete_reward', {{ r.id }}, T['confirm.delete_reward'])">🗑</button>
+      </div>
+      {% else %}<div class="muted">{{ t('shop.empty') }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <!-- ЛОГИ -->
+  <div id="tab-history" class="tab-content">
+    <div class="card">
+      <h3>{{ t('logs.title') }}</h3>
+      <select id="logFilter" onchange="filterLog()">
+        <option value="">{{ t('logs.all') }}</option>
+        {% for a in history|map(attribute='actor')|select|unique %}<option>{{ a }}</option>{% endfor %}
+      </select>
+      {% for h in history %}
+      <div class="list-row log-row" data-actor="{{ h.actor or '' }}" style="font-size:13px">
+        <div><b>{{ h.actor or '—' }}</b>: {{ h.text }}</div>
+        <span class="muted">{{ h.ts }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ОФОРМЛЕНИЕ -->
+  <div id="tab-look" class="tab-content">
+    <div class="card"><h3>{{ t('look.title') }}</h3>{{ theme_picker(me) }}
+      <p class="muted">{{ t('look.hint') }}</p></div>
+  </div>
+
+  <!-- Окно редактирования участника -->
+  <div class="modal" id="editModal">
+    <div class="card">
+      <h3>{{ t('edit.title') }}</h3>
+      <input type="hidden" id="euId">
+      <label class="field">{{ t('edit.name') }}</label><input id="euName">
+      <div class="row2">
+        <div><label class="field">{{ t('edit.pin') }}</label><input id="euPin" maxlength="4" inputmode="numeric"></div>
+        <div><label class="field">{{ t('edit.balance') }}</label><input id="euBalance" type="number"></div>
+      </div>
+      <div class="row2">
+        <div><label class="field">{{ t('edit.role') }}</label><select id="euRole"><option value="kid">{{ t('role.kid') }}</option><option value="admin">{{ t('role.admin') }}</option></select></div>
+        <div><label class="field">{{ t('edit.age') }}</label><input id="euAge" type="number" min="0" max="120"></div>
+      </div>
+      <label class="field">{{ t('edit.gender') }}</label>
+      <select id="euGender"><option value="">{{ t('gender.unset') }}</option><option value="female">{{ t('gender.female') }}</option><option value="male">{{ t('gender.male') }}</option></select>
+      <label class="field">{{ t('edit.avatar') }}</label><input id="euAvatar">
+      <label class="btn btn-blue" style="display:block;text-align:center;margin-bottom:10px">{{ t('edit.photo') }}
+        <input type="file" accept="image/*" hidden onchange="uploadAvatar(this, document.getElementById('euId').value)"></label>
+      <div class="row2">
+        <button class="btn-green" onclick="saveEdit()">{{ t('btn.save') }}</button>
+        <button class="btn-gray" onclick="closeEdit()">{{ t('btn.cancel') }}</button>
+      </div>
+      <button class="btn-red" style="width:100%;margin-top:8px" onclick="deleteUser()">{{ t('btn.delete_member') }}</button>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- КАБИНЕТ РЕБЁНКА -->
+  {% set free = me.balance - reserved %}
+  <div class="card" style="text-align:center;padding:26px">
+    <label style="cursor:pointer" title="{{ t('nav.change_photo') }}">{{ av(me, 96) }}
+      <input type="file" accept="image/*" hidden onchange="uploadAvatar(this, null)"></label>
+    <h2 style="margin:8px 0 0">{{ t('kid.my_safe') }}</h2>
+    <div class="coins" style="font-size:58px" id="myBalance">{{ me.balance }}</div>
+    <div>{{ t('kid.coins_label') }}</div>
+    {% if reserved %}<div class="muted" style="margin-top:6px">{{ t('kid.reserved', n=reserved) }}</div>{% endif %}
+    <div style="margin-top:10px;font-weight:bold">
+      {% if streak_now %}{{ t('kid.streak', n=streak_now) }}
+        {% if streak_bonus %}<div class="muted" style="font-weight:normal">{{ t('kid.streak_next', left=streak_left, bonus=streak_bonus) }}</div>{% endif %}
+      {% else %}<span class="muted" style="font-weight:normal">{{ t('kid.streak_none') }}</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>{{ t('goal.title') }}</h3>
+    {% if goal %}
+      <div><span style="font-size:22px">{{ goal.icon }}</span> <b>{{ goal.name }}</b></div>
+      <div class="bar"><i style="width:{{ goal.pct }}%"></i></div>
+      <div class="muted">{{ t('goal.progress', have=me.balance, cost=goal.cost) }}{% if me.balance >= goal.cost %} · <b style="color:var(--accent)">{{ t('goal.ready') }}</b>{% endif %}</div>
+      <button class="btn-gray" style="margin-top:8px;font-size:12px" onclick="setGoal(null)">{{ t('btn.goal_clear') }}</button>
+    {% else %}<div class="muted">{{ t('goal.none') }}</div>{% endif %}
+  </div>
+
+  <div class="card">
+    <h3>{{ t('kid.tasks_title') }}</h3>
+    {% for mt in my_tasks %}
+    <div class="list-row">
+      <div><b>{{ mt.name }}</b> <span style="color:var(--accent);font-weight:bold">+{{ mt.reward }} 🪙</span></div>
+      {% if mt.state %}<span class="pill {{ mt.state }}">{{ t('state.' ~ mt.state) }}</span>
+      {% else %}<button class="btn-green" onclick="submitTask({{ mt.id }})">{{ t('btn.done') }}</button>{% endif %}
+    </div>
+    {% else %}<div class="muted">{{ t('kid.tasks_empty') }}</div>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h3>{{ t('kid.shop_title') }}</h3>
+    {% for r in rewards %}
+    <div class="list-row">
+      <div><span style="font-size:22px">{{ r.icon }}</span> <b>{{ r.name }}</b><br><span style="color:var(--accent);font-weight:bold">{{ r.cost }} 🪙</span></div>
+      <div>
+        {% if not (goal and goal.id == r.id) %}<button class="btn-blue" onclick="setGoal({{ r.id }})">{{ t('btn.goal') }}</button>{% endif %}
+        <button class="btn-green" onclick="buyReward({{ r.id }})" {{ 'disabled' if free < r.cost }}>{{ t('btn.buy') }}</button>
+      </div>
+    </div>
+    {% else %}<div class="muted">{{ t('kid.shop_empty') }}</div>{% endfor %}
+  </div>
+
+  {% if my_requests %}
+  <div class="card">
+    <h3>{{ t('kid.my_requests') }}</h3>
+    {% for r in my_requests %}
+    <div class="list-row" style="font-size:14px">
+      <div>{{ r.icon }} {{ r.name }} <b>{{ '+' if r.type == 'task' else '−' }}{{ r.amount }} 🪙</b><br><span class="muted">{{ r.ts }}</span></div>
+      <div><span class="pill {{ r.status }}">{{ t('state.' ~ r.status) }}</span>
+        {% if r.type == 'buy' and r.status == 'pending' %}<button class="btn-gray" style="font-size:12px" onclick="cancelPurchase({{ r.id }})">{{ t('btn.cancel') }}</button>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="card"><h3>{{ t('look.title') }}</h3>{{ theme_picker(me) }}
+    <p class="muted">{{ t('look.hint') }}</p></div>
+  {% endif %}
+{% endif %}
+
+<script>
+const T = {{ T|tojson }};
+const state = { theme: {{ (me.theme if me else 'kawaii')|tojson }}, dark: {{ 'true' if me and me.dark_mode else 'false' }} };
+
+async function post(url, data) {
+  try {
+    const r = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data || {}) });
+    const j = await r.json();
+    if (!j.success) { alert(j.error || T['js.error']); return null; }
+    return j;
+  } catch (e) { alert(T['js.no_connection']); return null; }
+}
+async function act(url, data) { if (await post(url, data)) location.reload(); }
+const val = id => document.getElementById(id).value;
+
+/* --- вкладки (запоминаем выбранную, чтобы после перезагрузки не прыгать на первую) --- */
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(e => e.classList.toggle('active', e.id === id));
+  document.querySelectorAll('.tab-btn').forEach(e => e.classList.toggle('active', e.dataset.tab === id));
+  sessionStorage.setItem('tab', id);
+}
+if (document.querySelector('.tabs') && sessionStorage.getItem('tab') && document.getElementById(sessionStorage.getItem('tab'))) switchTab(sessionStorage.getItem('tab'));
+
+/* --- оформление: применяется сразу, без перезагрузки --- */
+function saveLook() { post('/update_settings', { theme: state.theme, dark_mode: state.dark }); }
+function setTheme(t) {
+  document.body.classList.remove('theme-' + state.theme); state.theme = t; document.body.classList.add('theme-' + t);
+  document.querySelectorAll('.theme-tile').forEach(e => e.classList.toggle('active', e.dataset.theme === t));
+  saveLook();
+}
+function toggleDark() {
+  state.dark = !state.dark; document.body.classList.toggle('dark-mode', state.dark);
+  document.getElementById('darkBtn').textContent = state.dark ? '☀️' : '🌙'; saveLook();
+}
+
+/* --- фото из галереи: обрезаем по центру до 256×256 JPEG (телефонные снимки слишком тяжёлые) --- */
+async function uploadAvatar(input, userId) {
+  const file = input.files[0]; if (!file) return;
+  try {
+    const img = await createImageBitmap(file), s = Math.min(img.width, img.height);
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256);
+    c.toBlob(async blob => {
+      const fd = new FormData(); fd.append('file', blob, 'a.jpg'); if (userId) fd.append('user_id', userId);
+      const j = await (await fetch('/upload_avatar', { method: 'POST', body: fd })).json();
+      j.success ? location.reload() : alert(j.error);
+    }, 'image/jpeg', 0.85);
+  } catch (e) { alert(T['js.photo_fail']); }
+}
+
+/* --- участники --- */
+function addUser() {
+  act('/add_user', { name: val('nuName'), pin: val('nuPin'), age: val('nuAge'), role: val('nuRole'), gender: val('nuGender'), avatar: val('nuAvatar') });
+}
+function openEdit(u) {
+  euId.value = u.id; euName.value = u.name; euPin.value = u.pin_code || ''; euBalance.value = u.balance;
+  euRole.value = u.role; euAge.value = u.age ?? ''; euGender.value = u.gender || ''; euAvatar.value = u.avatar || '';
+  editModal.classList.add('open');
+}
+function closeEdit() { editModal.classList.remove('open'); }
+function saveEdit() {
+  act('/edit_user', { id: val('euId'), name: val('euName'), pin: val('euPin'), balance: val('euBalance'),
+                      role: val('euRole'), age: val('euAge'), gender: val('euGender'), avatar: val('euAvatar') });
+}
+function delMember(id, name) {
+  if (confirm(T['confirm.delete_member'].replace('{name}', name))) act('/delete_user', { id });
+}
+function deleteUser() {
+  if (confirm(T['confirm.delete_member'].replace('{name}', val('euName')))) act('/delete_user', { id: val('euId') });
+}
+
+/* --- задачи, штрафы, магазин --- */
+const award = (kid_id, task_id) => act('/add_points', { kid_id, task_id });
+function addTask() {
+  const weekdays = [...document.querySelectorAll('.wd:checked')].map(e => +e.value);
+  act('/add_task', { name: val('taskName'), reward: val('taskReward'), kind: val('taskKind'), weekdays, assignee_id: val('taskAssignee') });
+}
+function kindChanged() { document.getElementById('wdBox').style.display = val('taskKind') === 'weekly' ? 'flex' : 'none'; }
+const submitTask = task_id => act('/submit_task', { task_id });
+const decide = (what, id, approve) => act('/decide_' + what, { id, approve });
+const cancelPurchase = id => act('/cancel_purchase', { id });
+const setGoal = reward_id => act('/set_goal', { reward_id });
+const saveStreak = () => act('/save_streak', { days: val('stDays'), bonus: val('stBonus') });
+const addFine = () => act('/add_fine', { name: val('fineName'), amount: val('fineAmount') });
+const applyFine = fine_id => { if (confirm(T['confirm.apply_fine'])) act('/apply_fine', { fine_id, user_id: val('fineTarget') }); };
+const addReward = () => act('/add_reward', { name: val('rewName'), cost: val('rewCost'), icon: val('rewIcon') });
+function del(url, id, question) { if (confirm(question)) act(url, { id }); }
+async function buyReward(reward_id) {
+  if (!confirm(T['confirm.buy'])) return;
+  if (await post('/buy_reward', { reward_id })) { alert(T['buy.sent']); location.reload(); }
+}
+
+/* --- значок «новые заявки» у взрослого обновляется раз в 30 секунд --- */
+if (document.getElementById('reqCount')) setInterval(async () => {
+  try {
+    const j = await (await fetch('/pending_count')).json(), el = document.getElementById('reqCount');
+    if (j.success) { el.textContent = j.count; el.style.display = j.count ? 'inline-block' : 'none'; }
+  } catch (e) {}
+}, 30000);
+
+/* --- язык --- */
+async function setLang(lang) { if (await post('/set_lang', { lang })) location.reload(); }
+
+/* --- журнал --- */
+function filterLog() {
+  const a = val('logFilter');
+  document.querySelectorAll('.log-row').forEach(r => r.style.display = (!a || r.dataset.actor === a) ? '' : 'none');
+}
+</script>
+</body>
+</html>

@@ -20,9 +20,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads_data:/app/uploads   # аватарки переживают пересборку контейнера
     depends_on:
       - db
     restart: always
 
 volumes:
   postgres_data:
+  uploads_data:
