@@ -63,6 +63,12 @@ input, select { width:100%; padding:10px; margin-bottom:8px; border:1px solid va
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:14px; z-index:10; }
 .modal.open { display:flex; }
 .modal .card { width:100%; max-width:420px; max-height:92vh; overflow-y:auto; margin:0; }
+.chart-btn { background:var(--card-bg); color:var(--text-color); border:1px solid var(--line); }
+.chart-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.badges { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:10px; }
+.ach-item { text-align:center; border:1px solid var(--line); border-radius:12px; padding:8px 4px; font-size:13px; }
+.ach-item .ico { font-size:34px; line-height:1.2; }
+.ach-item.locked { filter:grayscale(1); opacity:.55; }
 .count { background:#e74c3c; color:#fff; border-radius:10px; padding:0 7px; font-size:12px; margin-left:4px; }
 .bar { height:16px; background:var(--line); border-radius:9px; overflow:hidden; margin:8px 0 4px; }
 .bar > i { display:block; height:100%; background:var(--accent); transition:width .4s; }
@@ -131,6 +137,8 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     <button class="tab-btn" data-tab="tab-tasks" onclick="switchTab('tab-tasks')">{{ t('tab.tasks') }}</button>
     <button class="tab-btn" data-tab="tab-fines" onclick="switchTab('tab-fines')">{{ t('tab.fines') }}</button>
     <button class="tab-btn" data-tab="tab-shop" onclick="switchTab('tab-shop')">{{ t('tab.shop') }}</button>
+    <button class="tab-btn" data-tab="tab-ach" onclick="switchTab('tab-ach')">{{ t('tab.ach') }}</button>
+    <button class="tab-btn" data-tab="tab-stats" onclick="switchTab('tab-stats')">{{ t('tab.stats') }}</button>
     <button class="tab-btn" data-tab="tab-history" onclick="switchTab('tab-history')">{{ t('tab.logs') }}</button>
     <button class="tab-btn" data-tab="tab-look" onclick="switchTab('tab-look')">{{ t('tab.look') }}</button>
   </div>
@@ -284,6 +292,38 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     </div>
   </div>
 
+  <!-- ДОСТИЖЕНИЯ -->
+  <div id="tab-ach" class="tab-content">
+    <div class="card">
+      <h3>{{ t('ach.title') }}</h3>
+      <p class="muted">{{ t('ach.hint') }}</p>
+      {% for a in achievements %}
+      <div class="list-row">
+        <div><span style="font-size:26px">{{ a.icon }}</span> <b>{{ a.title }}</b>{% if not a.active %} <span class="pill">{{ t('ach.off') }}</span>{% endif %}<br>
+          <span class="muted">{{ t('metric.' ~ a.metric) }}: {{ a.threshold }}{% if a.bonus %} · +{{ a.bonus }} 🪙{% endif %}</span><br>
+          <span class="muted">{{ t('ach.earned_by', names=a.earned_by) if a.earned_by else t('ach.nobody') }}</span></div>
+        <button class="btn-blue" onclick='openAch({{ a.edit|tojson }})'>{{ t('btn.edit') }}</button>
+      </div>
+      {% endfor %}
+      <button class="btn-green" style="width:100%;margin-top:10px" onclick="openAch(null)">{{ t('ach.add') }}</button>
+    </div>
+  </div>
+
+  <!-- СТАТИСТИКА -->
+  <div id="tab-stats" class="tab-content">
+    <div class="card">
+      <h3>{{ t('stats.title') }}</h3>
+      {% if kids %}
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="chart-btn active" id="stBtn-earned" onclick="showStats('earned')">{{ t('stats.earned') }}</button>
+        <button class="chart-btn" id="stBtn-spent" onclick="showStats('spent')">{{ t('stats.spent') }}</button>
+      </div>
+      <div id="chart"></div>
+      {% else %}<div class="muted">{{ t('stats.empty') }}</div>{% endif %}
+      <p class="muted">{{ t('stats.hint') }}</p>
+    </div>
+  </div>
+
   <!-- ЛОГИ -->
   <div id="tab-history" class="tab-content">
     <div class="card">
@@ -305,6 +345,31 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
   <div id="tab-look" class="tab-content">
     <div class="card"><h3>{{ t('look.title') }}</h3>{{ theme_picker(me) }}
       <p class="muted">{{ t('look.hint') }}</p></div>
+  </div>
+
+  <!-- Окно редактирования достижения -->
+  <div class="modal" id="achModal">
+    <div class="card">
+      <h3>🏅 {{ t('ach.title') }}</h3>
+      <input type="hidden" id="aId">
+      <div class="row2">
+        <div><label class="field">{{ t('ach.f_name') }}</label><input id="aName" maxlength="60"></div>
+        <div><label class="field">{{ t('ach.f_icon') }}</label><input id="aIcon" maxlength="10"></div>
+      </div>
+      <label class="field">{{ t('ach.f_metric') }}</label>
+      <select id="aMetric">{% for m in metrics %}<option value="{{ m }}">{{ t('metric.' ~ m) }}</option>{% endfor %}</select>
+      <div class="row2">
+        <div><label class="field">{{ t('ach.f_threshold') }}</label><input id="aThreshold" type="number" min="1" max="100000"></div>
+        <div><label class="field">{{ t('ach.f_bonus') }}</label><input id="aBonus" type="number" min="0" max="1000"></div>
+      </div>
+      <label class="field" style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <input type="checkbox" id="aActive" style="width:auto;margin:0"> {{ t('ach.f_active') }}</label>
+      <div class="row2">
+        <button class="btn-green" onclick="saveAch()">{{ t('btn.save') }}</button>
+        <button class="btn-gray" onclick="closeAch()">{{ t('btn.cancel') }}</button>
+      </div>
+      <button class="btn-red" id="aDelete" style="width:100%;margin-top:8px" onclick="deleteAch()">{{ t('btn.delete_member') }}</button>
+    </div>
   </div>
 
   <!-- Окно редактирования участника -->
@@ -383,6 +448,39 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
       </div>
     </div>
     {% else %}<div class="muted">{{ t('kid.shop_empty') }}</div>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h3>{{ t('gift.title') }}</h3>
+    {% if other_kids %}
+      <label class="field">{{ t('gift.to') }}</label>
+      <select id="giftTo">{% for k in other_kids %}<option value="{{ k.id }}">{{ k.name }}</option>{% endfor %}</select>
+      <input id="giftAmount" type="number" min="1" placeholder="{{ t('ph.amount') }}">
+      <button class="btn-green" style="width:100%" onclick="giftCoins()" {{ 'disabled' if free < 1 }}>{{ t('btn.gift') }}</button>
+      <p class="muted">{{ t('gift.hint') }}</p>
+    {% else %}<div class="muted">{{ t('gift.no_kids') }}</div>{% endif %}
+  </div>
+
+  <div class="card">
+    <h3>{{ t('ach.mine') }}</h3>
+    <div class="badges">
+      {% for a in my_ach %}
+      <div class="ach-item {{ '' if a.earned else 'locked' }}">
+        <div class="ico">{{ a.icon }}</div><div><b>{{ a.title }}</b></div>
+        {% if not a.earned %}<div class="muted">{{ a.have }} / {{ a.threshold }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>{{ t('hist.title') }}</h3>
+    {% for h in ledger_rows %}
+    <div class="list-row" style="font-size:14px">
+      <div>{{ t('ledger.' ~ h.kind, title=h.title) }}<br><span class="muted">{{ h.ts }}</span></div>
+      <b style="color:{{ 'var(--accent)' if h.amount > 0 else '#e74c3c' }}">{{ '+' if h.amount > 0 }}{{ h.amount }} 🪙</b>
+    </div>
+    {% else %}<div class="muted">{{ t('hist.empty') }}</div>{% endfor %}
   </div>
 
   {% if my_requests %}
@@ -501,6 +599,55 @@ if (document.getElementById('reqCount')) setInterval(async () => {
     if (j.success) { el.textContent = j.count; el.style.display = j.count ? 'inline-block' : 'none'; }
   } catch (e) {}
 }, 30000);
+
+/* --- подарок другому ребёнку --- */
+async function giftCoins() {
+  const sel = document.getElementById('giftTo'), amount = val('giftAmount');
+  if (!sel.value || !amount) return;
+  const q = T['confirm.gift'].replace('{amount}', amount).replace('{name}', sel.options[sel.selectedIndex].text);
+  if (!confirm(q)) return;
+  if (await post('/transfer', { to_id: sel.value, amount })) { alert(T['gift.done']); location.reload(); }
+}
+
+/* --- достижения (взрослый) --- */
+function openAch(a) {
+  aId.value = a ? a.id : ''; aName.value = a ? a.name : ''; aIcon.value = a ? a.icon : '🏅';
+  aMetric.value = a ? a.metric : 'tasks_total'; aThreshold.value = a ? a.threshold : 5; aBonus.value = a ? a.bonus : 0;
+  aActive.checked = a ? a.active : true; aDelete.style.display = a ? 'block' : 'none';
+  achModal.classList.add('open');
+}
+const closeAch = () => achModal.classList.remove('open');
+const saveAch = () => act('/save_achievement', { id: val('aId'), name: val('aName'), icon: val('aIcon'),
+  metric: val('aMetric'), threshold: val('aThreshold'), bonus: val('aBonus'), active: aActive.checked });
+const deleteAch = () => { if (confirm(T['confirm.delete_ach'])) act('/delete_achievement', { id: val('aId') }); };
+
+/* --- график недели: один график на всех детей, линия = ребёнок --- */
+const STATS = {{ (stats or {})|tojson }};
+const COLORS = ['#e74c3c', '#3498db', '#27ae60', '#f39c12', '#9b59b6', '#16a085'];
+const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function showStats(metric) {
+  document.querySelectorAll('.chart-btn').forEach(b => b.classList.toggle('active', b.id === 'stBtn-' + metric));
+  const box = document.getElementById('chart'); if (!box || !STATS.series) return;
+  const W = 600, H = 280, L = 42, R = 14, TOP = 14, B = 34, n = STATS.days.length;
+  const top = Math.ceil(Math.max(4, ...STATS.series.flatMap(s => s[metric])) / 4) * 4;
+  const x = i => L + (W - L - R) * i / (n - 1), y = v => TOP + (H - TOP - B) * (1 - v / top);
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block">';
+  for (let i = 0; i <= 4; i++) {
+    const v = top * i / 4;
+    svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="currentColor" opacity=".15"/>'
+         + '<text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11" fill="currentColor" opacity=".7">' + v + '</text>';
+  }
+  STATS.days.forEach((d, i) => { svg += '<text x="' + x(i) + '" y="' + (H - 12) + '" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">' + d + '</text>'; });
+  STATS.series.forEach((s, k) => {
+    const c = COLORS[k % COLORS.length];
+    svg += '<polyline points="' + s[metric].map((v, i) => x(i) + ',' + y(v)).join(' ') + '" fill="none" stroke="' + c + '" stroke-width="3" stroke-linejoin="round"/>';
+    s[metric].forEach((v, i) => { svg += '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="4" fill="' + c + '"><title>' + esc(s.name) + ': ' + v + '</title></circle>'; });
+  });
+  svg += '</svg><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">'
+       + STATS.series.map((s, k) => '<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;background:' + COLORS[k % COLORS.length] + '"></i>' + esc(s.name) + '</span>').join('') + '</div>';
+  box.innerHTML = svg;
+}
+showStats('earned');
 
 /* --- язык --- */
 async function setLang(lang) { if (await post('/set_lang', { lang })) location.reload(); }

@@ -100,6 +100,38 @@ def init_db():
                     day DATE NOT NULL, amount INTEGER NOT NULL, PRIMARY KEY (user_id, day));''')
                 cur.execute("CREATE TABLE IF NOT EXISTS settings (key VARCHAR(30) PRIMARY KEY, value VARCHAR(30) NOT NULL);")
                 cur.execute("INSERT INTO settings VALUES ('streak_days', '5'), ('streak_bonus', '10') ON CONFLICT DO NOTHING;")
+                # журнал баланса ребёнка: каждое изменение монет (+/−) одной строкой
+                cur.execute('''CREATE TABLE IF NOT EXISTS ledger (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    kind VARCHAR(20) NOT NULL, amount INTEGER NOT NULL, title VARCHAR(100) DEFAULT '',
+                    created_at TIMESTAMP DEFAULT (now() AT TIME ZONE 'UTC'));''')
+                cur.execute("CREATE INDEX IF NOT EXISTS ledger_user_idx ON ledger (user_id, id DESC);")
+                cur.execute("SELECT COUNT(*) FROM ledger;")
+                if cur.fetchone()[0] == 0:   # один раз переносим уже подтверждённое (штрафы раньше нигде не хранились)
+                    cur.execute("INSERT INTO ledger (user_id, kind, amount, title, created_at) "
+                                "SELECT user_id, 'task', reward, task_name, COALESCE(decided_at, created_at) "
+                                "FROM completions WHERE status = 'approved'")
+                    cur.execute("INSERT INTO ledger (user_id, kind, amount, title, created_at) "
+                                "SELECT user_id, 'purchase', -cost, reward_name, COALESCE(decided_at, created_at) "
+                                "FROM purchases WHERE status = 'approved'")
+                    cur.execute("INSERT INTO ledger (user_id, kind, amount, title, created_at) "
+                                "SELECT user_id, 'streak', amount, '', day::timestamp FROM streak_bonuses")
+                # достижения: условие = метрика + порог; бонус в монетах необязателен
+                cur.execute('''CREATE TABLE IF NOT EXISTS achievements (
+                    id SERIAL PRIMARY KEY, code VARCHAR(30), name VARCHAR(60), icon VARCHAR(10) DEFAULT '🏅',
+                    metric VARCHAR(20) NOT NULL, threshold INTEGER NOT NULL, bonus INTEGER NOT NULL DEFAULT 0,
+                    active BOOLEAN NOT NULL DEFAULT TRUE);''')
+                cur.execute('''CREATE TABLE IF NOT EXISTS user_achievements (
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    achievement_id INTEGER NOT NULL REFERENCES achievements(id) ON DELETE CASCADE,
+                    earned_at TIMESTAMP DEFAULT (now() AT TIME ZONE 'UTC'), PRIMARY KEY (user_id, achievement_id));''')
+                cur.execute("SELECT COUNT(*) FROM achievements;")
+                if cur.fetchone()[0] == 0:
+                    cur.execute("INSERT INTO achievements (code, icon, metric, threshold) VALUES "
+                                "('first_task', '🥇', 'tasks_total', 1), ('first_purchase', '🛒', 'purchases_total', 1), "
+                                "('ten_tasks', '🔟', 'tasks_total', 10), ('streak5', '🔥', 'streak_days', 5), "
+                                "('rich100', '💰', 'balance', 100)")
 
                 cur.execute('SELECT COUNT(*) FROM users;')
                 if cur.fetchone()[0] == 0:
@@ -256,6 +288,7 @@ def grant_completion(cur, comp_id):
         raise Bad('err.request_done')
     cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s RETURNING name", (c['reward'], c['user_id']))
     kid = cur.fetchone()['name']
+    add_ledger(cur, c['user_id'], 'task', c['reward'], c['task_name'])
     log(cur, 'log.completion_approved', task=c['task_name'], kid=kid, reward=c['reward'])
     days, bonus = get_setting(cur, 'streak_days', 5), get_setting(cur, 'streak_bonus', 10)
     if days > 0 and bonus > 0:
@@ -265,8 +298,89 @@ def grant_completion(cur, comp_id):
                         "ON CONFLICT DO NOTHING RETURNING 1", (c['user_id'], c['for_date'], bonus))
             if cur.fetchone():   # один бонус на один день серии, даже если подтверждено несколько задач
                 cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (bonus, c['user_id']))
+                add_ledger(cur, c['user_id'], 'streak', bonus)
                 log(cur, 'log.streak_bonus', kid=kid, days=n, amount=bonus)
+    check_achievements(cur, c['user_id'])
     return kid
+
+
+METRICS = ('tasks_total', 'purchases_total', 'streak_days', 'balance', 'transfers_sent')
+
+
+def add_ledger(cur, uid, kind, amount, title=''):
+    """Строка в историю баланса ребёнка. kind: task / streak / achievement / fine / purchase /
+    transfer_in / transfer_out / adjust."""
+    if amount:
+        cur.execute("INSERT INTO ledger (user_id, kind, amount, title) VALUES (%s, %s, %s, %s)",
+                    (uid, kind, amount, (title or '')[:100]))
+
+
+def max_streak(cur, uid):
+    """Самая длинная серия дней подряд за всё время."""
+    cur.execute("SELECT DISTINCT for_date FROM completions WHERE user_id = %s AND status = 'approved' "
+                "ORDER BY for_date", (uid,))
+    best = run = 0
+    prev = None
+    for row in cur.fetchall():
+        run = run + 1 if prev and (row[0] - prev).days == 1 else 1
+        best, prev = max(best, run), row[0]
+    return best
+
+
+def metric_values(cur, uid):
+    cur.execute("""SELECT
+        (SELECT COUNT(*) FROM completions WHERE user_id = %(u)s AND status = 'approved') AS tasks_total,
+        (SELECT COUNT(*) FROM purchases WHERE user_id = %(u)s AND status = 'approved') AS purchases_total,
+        (SELECT balance FROM users WHERE id = %(u)s) AS balance,
+        (SELECT COUNT(*) FROM ledger WHERE user_id = %(u)s AND kind = 'transfer_out') AS transfers_sent""", {'u': uid})
+    values = dict(cur.fetchone())
+    values['streak_days'] = max_streak(cur, uid)
+    return values
+
+
+def ach_title(a):
+    """Своё название, если взрослый его задал; иначе стандартное на языке пользователя."""
+    return a['name'] or tr('ach.' + (a['code'] or 'custom'))
+
+
+def check_achievements(cur, uid):
+    """Выдаёт ребёнку все достижения, условия которых выполнены. Вызывать после любого изменения монет."""
+    for _ in range(5):   # бонус за достижение может сам открыть следующее (например, по балансу)
+        values = metric_values(cur, uid)
+        cur.execute("""SELECT a.* FROM achievements a WHERE a.active AND NOT EXISTS
+                       (SELECT 1 FROM user_achievements ua WHERE ua.user_id = %s AND ua.achievement_id = a.id)""", (uid,))
+        new = [a for a in cur.fetchall() if values.get(a['metric'], 0) >= a['threshold']]
+        if not new:
+            return
+        cur.execute("SELECT name FROM users WHERE id = %s", (uid,))
+        kid = cur.fetchone()['name']
+        for a in new:
+            cur.execute("INSERT INTO user_achievements (user_id, achievement_id) VALUES (%s, %s) "
+                        "ON CONFLICT DO NOTHING RETURNING 1", (uid, a['id']))
+            if not cur.fetchone():
+                continue
+            title = ach_title(a)
+            log(cur, 'log.achievement', actor=kid, kid=kid, name=title)
+            if a['bonus'] > 0:
+                cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (a['bonus'], uid))
+                add_ledger(cur, uid, 'achievement', a['bonus'], title)
+
+
+def week_stats(cur, today, kids):
+    """Данные для графика: по каждому ребёнку заработано/потрачено за последние 7 дней."""
+    start = today - timedelta(days=6)
+    cur.execute("""SELECT user_id, d,
+                          SUM(CASE WHEN kind IN ('task', 'streak', 'achievement') THEN amount ELSE 0 END) AS earned,
+                          SUM(CASE WHEN kind IN ('purchase', 'fine') THEN -amount ELSE 0 END) AS spent
+                   FROM (SELECT user_id, kind, amount, ((created_at AT TIME ZONE 'UTC') AT TIME ZONE %s)::date AS d
+                         FROM ledger WHERE created_at >= (now() AT TIME ZONE 'UTC') - interval '9 days') l
+                   WHERE d >= %s GROUP BY user_id, d""", (TZ, start))
+    cells = {(r['user_id'], r['d']): (int(r['earned']), int(r['spent'])) for r in cur.fetchall()}
+    days = [start + timedelta(days=i) for i in range(7)]
+    return dict(days=[d.strftime('%d.%m') for d in days],
+                series=[dict(name=k['name'],
+                             earned=[cells.get((k['id'], d), (0, 0))[0] for d in days],
+                             spent=[cells.get((k['id'], d), (0, 0))[1] for d in days]) for k in kids])
 
 
 def kid_tasks(cur, uid, today):
@@ -322,6 +436,15 @@ def index():
             ctx['req_buys'] = cur.fetchall()
             ctx['pending_count'] = len(ctx['req_tasks']) + len(ctx['req_buys'])
             ctx['streak'] = dict(days=get_setting(cur, 'streak_days', 5), bonus=get_setting(cur, 'streak_bonus', 10))
+            ctx['stats'] = week_stats(cur, today_date(cur), ctx['kids'])
+            cur.execute("""SELECT a.*, COALESCE(string_agg(u.name, ', ' ORDER BY u.name), '') AS earned_by
+                           FROM achievements a LEFT JOIN user_achievements ua ON ua.achievement_id = a.id
+                           LEFT JOIN users u ON u.id = ua.user_id GROUP BY a.id ORDER BY a.id""")
+            ctx['achievements'] = [dict(a, title=ach_title(a),
+                                        edit=dict(id=a['id'], name=ach_title(a), icon=a['icon'], metric=a['metric'],
+                                                  threshold=a['threshold'], bonus=a['bonus'], active=a['active']))
+                                   for a in cur.fetchall()]
+            ctx['metrics'] = METRICS
             cur.execute("SELECT * FROM fines ORDER BY id")
             ctx['fines'] = cur.fetchall()
             cur.execute("""SELECT actor, action, event_desc, params,
@@ -351,6 +474,19 @@ def index():
                                    created_at, {fmt} AS ts FROM purchases WHERE user_id = %s ORDER BY id DESC LIMIT 8""", (TZ, uid))
             reqs += [dict(r) for r in cur.fetchall()]
             ctx['my_requests'] = sorted(reqs, key=lambda r: r['created_at'], reverse=True)[:10]
+            # история баланса: последние 25 изменений с датой и временем
+            cur.execute("""SELECT kind, amount, title,
+                                  to_char((created_at AT TIME ZONE 'UTC') AT TIME ZONE %s, 'DD.MM.YYYY HH24:MI') AS ts
+                           FROM ledger WHERE user_id = %s ORDER BY id DESC LIMIT 25""", (TZ, uid))
+            ctx['ledger_rows'] = cur.fetchall()
+            values = metric_values(cur, uid)
+            cur.execute("SELECT achievement_id FROM user_achievements WHERE user_id = %s", (uid,))
+            earned = {r[0] for r in cur.fetchall()}
+            cur.execute("SELECT * FROM achievements WHERE active ORDER BY id")
+            ctx['my_ach'] = [dict(title=ach_title(a), icon=a['icon'], threshold=a['threshold'], earned=a['id'] in earned,
+                                  have=min(values.get(a['metric'], 0), a['threshold'])) for a in cur.fetchall()]
+            cur.execute("SELECT id, name FROM users WHERE role = 'kid' AND id <> %s ORDER BY id", (uid,))
+            ctx['other_kids'] = cur.fetchall()
     return render_template('index.html', **ctx)
 
 
@@ -426,7 +562,7 @@ def edit_user():
     name, pin, role, gender, age, avatar = clean_user(d, uid)
     balance = int(d.get('balance', 0))
     with db() as cur:
-        cur.execute("SELECT role FROM users WHERE id = %s", (uid,))
+        cur.execute("SELECT role, balance FROM users WHERE id = %s", (uid,))
         old = cur.fetchone()
         if not old:
             raise Bad('err.user_not_found')
@@ -436,6 +572,8 @@ def edit_user():
                 raise Bad('err.last_admin')
         cur.execute("UPDATE users SET name=%s, pin_code=%s, role=%s, gender=%s, age=%s, avatar=%s, balance=%s "
                     "WHERE id=%s", (name, pin, role, gender, age, avatar, balance, uid))
+        add_ledger(cur, uid, 'adjust', balance - old['balance'])
+        check_achievements(cur, uid)
         log(cur, 'log.user_edited', name=name)
     return jsonify(success=True)
 
@@ -678,6 +816,7 @@ def apply_fine():
             raise Bad('err.not_found')
         taken = min(fine['amount'], user['balance'])   # баланс не уходит в минус
         cur.execute("UPDATE users SET balance = balance - %s WHERE id = %s", (taken, int(d['user_id'])))
+        add_ledger(cur, int(d['user_id']), 'fine', -taken, fine['name'])
         log(cur, 'log.fine_applied', fine=fine['name'], user=user['name'], taken=taken)
     return jsonify(success=True)
 
@@ -765,10 +904,87 @@ def decide_purchase():
                 raise Bad('err.no_coins')   # исключение откатывает всю транзакцию: заявка останется ожидающей
             cur.execute("UPDATE users SET goal_reward_id = NULL WHERE id = %s AND goal_reward_id = %s",
                         (p['user_id'], p['reward_id']))   # цель достигнута
+            add_ledger(cur, p['user_id'], 'purchase', -p['cost'], p['reward_name'])
             log(cur, 'log.purchase_approved', kid=kid['name'], name=p['reward_name'], cost=p['cost'])
+            check_achievements(cur, p['user_id'])
         else:
             cur.execute("SELECT name FROM users WHERE id = %s", (p['user_id'],))
             log(cur, 'log.purchase_rejected', kid=cur.fetchone()['name'], name=p['reward_name'])
+    return jsonify(success=True)
+
+
+# ---------- Подарки между детьми ----------
+@app.route('/transfer', methods=['POST'])
+@api()
+def transfer():
+    """Ребёнок дарит монеты другому ребёнку. Монеты не создаются: у одного минус, у другого плюс."""
+    require_kid()
+    d = body()
+    uid, to_id, amount = session['user_id'], int(d['to_id']), int(d['amount'])
+    if amount <= 0:
+        raise Bad('err.bad_amount')
+    if to_id == uid:
+        raise Bad('err.self_transfer')
+    with db() as cur:
+        cur.execute("SELECT id, name FROM users WHERE id = %s AND role = 'kid'", (to_id,))
+        to = cur.fetchone()
+        if not to:
+            raise Bad('err.kid_only_transfer')
+        # блокируем обе строки в одном порядке: два одновременных подарка друг другу не зависнут
+        cur.execute("SELECT id, name, balance FROM users WHERE id IN (%s, %s) ORDER BY id FOR UPDATE", (uid, to_id))
+        me = next(r for r in cur.fetchall() if r['id'] == uid)
+        cur.execute("SELECT COALESCE(SUM(cost), 0) FROM purchases WHERE user_id = %s AND status = 'pending'", (uid,))
+        if me['balance'] - cur.fetchone()[0] < amount:   # монеты под заявки на покупку дарить нельзя
+            raise Bad('err.no_coins_free')
+        cur.execute("UPDATE users SET balance = balance - %s WHERE id = %s", (amount, uid))
+        cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (amount, to_id))
+        add_ledger(cur, uid, 'transfer_out', -amount, to['name'])
+        add_ledger(cur, to_id, 'transfer_in', amount, me['name'])
+        log(cur, 'log.transfer', from_name=me['name'], to_name=to['name'], amount=amount)
+        check_achievements(cur, uid)
+        check_achievements(cur, to_id)
+    return jsonify(success=True)
+
+
+# ---------- Достижения (настраиваются взрослыми) ----------
+@app.route('/save_achievement', methods=['POST'])
+@api(admin=True)
+def save_achievement():
+    d = body()
+    name, icon = (d.get('name') or '').strip()[:60], (d.get('icon') or '🏅').strip()[:10]
+    metric, active = d.get('metric'), bool(d.get('active'))
+    threshold, bonus = int(d['threshold']), int(d.get('bonus') or 0)
+    if metric not in METRICS:
+        raise Bad('err.bad_metric')
+    if not name:
+        raise Bad('err.enter_name')
+    if not (1 <= threshold <= 100000 and 0 <= bonus <= 1000):
+        raise Bad('err.bad_ach')
+    with db() as cur:
+        if d.get('id'):
+            cur.execute("UPDATE achievements SET name=%s, icon=%s, metric=%s, threshold=%s, bonus=%s, active=%s "
+                        "WHERE id=%s RETURNING id", (name, icon, metric, threshold, bonus, active, int(d['id'])))
+            if not cur.fetchone():
+                raise Bad('err.ach_not_found')
+        else:
+            cur.execute("INSERT INTO achievements (name, icon, metric, threshold, bonus, active) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)", (name, icon, metric, threshold, bonus, active))
+        log(cur, 'log.ach_saved', name=name)
+        cur.execute("SELECT id FROM users WHERE role = 'kid'")
+        for kid in cur.fetchall():   # условие могли смягчить — проверяем всех детей сразу
+            check_achievements(cur, kid['id'])
+    return jsonify(success=True)
+
+
+@app.route('/delete_achievement', methods=['POST'])
+@api(admin=True)
+def delete_achievement():
+    with db() as cur:
+        cur.execute("DELETE FROM achievements WHERE id = %s RETURNING name, code", (int(body()['id']),))
+        row = cur.fetchone()
+        if not row:
+            raise Bad('err.ach_not_found')
+        log(cur, 'log.ach_deleted', name=ach_title(row))
     return jsonify(success=True)
 
 
