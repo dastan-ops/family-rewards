@@ -10,6 +10,11 @@
 body.theme-kawaii    { --accent:#ff6fa5; --primary:#a56bff; --bgimg:url(/static/themes/kawaii.svg); }
 body.theme-cyberpunk { --accent:#0fb5c7; --primary:#a855f7; --bgimg:url(/static/themes/cyberpunk.svg); }
 body.theme-minecraft { --accent:#3f9b3a; --primary:#c0392b; --bgimg:url(/static/themes/minecraft.svg); }
+body.theme-space     { --accent:#7c6cff; --primary:#00b4d8; --bgimg:url(/static/themes/space.svg); }
+body.theme-unicorn   { --accent:#c77dff; --primary:#4cc9f0; --bgimg:url(/static/themes/unicorn.svg); }
+body.theme-dino      { --accent:#4f9a3a; --primary:#d9822b; --bgimg:url(/static/themes/dino.svg); }
+body.theme-sea       { --accent:#0ea5b7; --primary:#2563eb; --bgimg:url(/static/themes/sea.svg); }
+body.theme-custom    { --accent:#3b82f6; --primary:#8b5cf6; --bgimg:var(--custom-bg); --veil:rgba(255,255,255,.3); }
 body.dark-mode { --card-bg:rgba(20,20,28,.9); --text-color:#ececf1; --line:rgba(255,255,255,.14);
                  --field-bg:rgba(0,0,0,.4); --veil:rgba(0,0,0,.5); }
 
@@ -97,14 +102,23 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
 
 {% macro theme_picker(me) %}
 <div class="themes">
-  {% for key, label in [('kawaii','🦄 Kawaii'), ('cyberpunk','🌆 Cyberpunk'), ('minecraft','⛏️ Minecraft')] %}
+  {% for key in ['kawaii', 'cyberpunk', 'minecraft', 'space', 'unicorn', 'dino', 'sea'] %}
   <div class="theme-tile {{ 'active' if me.theme == key }}" data-theme="{{ key }}"
-       style="background-image:url(/static/themes/{{ key }}.svg)" onclick="setTheme('{{ key }}')">{{ label }}</div>
+       style="background-image:url(/static/themes/{{ key }}.svg)" onclick="setTheme('{{ key }}')">{{ t('theme.' ~ key) }}</div>
   {% endfor %}
+  {% if me.bg_img %}
+  <div class="theme-tile {{ 'active' if me.theme == 'custom' }}" data-theme="custom"
+       style="background-image:url('/avatars/{{ me.bg_img }}')" onclick="setTheme('custom')">{{ t('theme.custom') }}</div>
+  {% endif %}
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+  <label class="btn btn-blue">📷 {{ t('theme.upload') }}<input type="file" accept="image/*" hidden onchange="uploadBackground(this)"></label>
+  {% if me.bg_img %}<button class="btn-gray" onclick="removeBackground()">{{ t('theme.remove') }}</button>{% endif %}
 </div>
 {% endmacro %}
 
-<body class="theme-{{ me.theme if me else 'kawaii' }}{{ ' dark-mode' if me and me.dark_mode }}">
+{% set theme = ('kawaii' if (me.theme == 'custom' and not me.bg_img) else me.theme) if me else 'kawaii' %}
+<body class="theme-{{ theme }}{{ ' dark-mode' if me and me.dark_mode }}"{% if me and me.bg_img %} style="--custom-bg:url('/avatars/{{ me.bg_img }}')"{% endif %}>
 
 {% if not me %}
   <div class="login-container">
@@ -125,6 +139,7 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     </label>
     <div class="right">
       {{ lang_switch() }}
+      <button class="btn-icon" id="soundBtn" onclick="toggleSound()" title="{{ t('nav.sound') }}">🔊</button>
       <button class="btn-icon" id="darkBtn" onclick="toggleDark()" title="{{ t('nav.day_night') }}">{{ '☀️' if me.dark_mode else '🌙' }}</button>
       <a href="/logout">{{ t('nav.logout') }}</a>
     </div>
@@ -512,7 +527,11 @@ async function post(url, data) {
     return j;
   } catch (e) { alert(T['js.no_connection']); return null; }
 }
-async function act(url, data) { if (await post(url, data)) location.reload(); }
+async function act(url, data, effect) {
+  if (!await post(url, data)) return;
+  if (effect) { play(effect); confetti(effect === 'bell' ? { count: 80 } : {}); setTimeout(() => location.reload(), 1300); }
+  else location.reload();
+}
 const val = id => document.getElementById(id).value;
 
 /* --- вкладки (запоминаем выбранную, чтобы после перезагрузки не прыгать на первую) --- */
@@ -572,14 +591,14 @@ function deleteUser() {
 }
 
 /* --- задачи, штрафы, магазин --- */
-const award = (kid_id, task_id) => act('/add_points', { kid_id, task_id });
+const award = (kid_id, task_id) => act('/add_points', { kid_id, task_id }, 'coin');
 function addTask() {
   const weekdays = [...document.querySelectorAll('.wd:checked')].map(e => +e.value);
   act('/add_task', { name: val('taskName'), reward: val('taskReward'), kind: val('taskKind'), weekdays, assignee_id: val('taskAssignee') });
 }
 function kindChanged() { document.getElementById('wdBox').style.display = val('taskKind') === 'weekly' ? 'flex' : 'none'; }
 const submitTask = task_id => act('/submit_task', { task_id });
-const decide = (what, id, approve) => act('/decide_' + what, { id, approve });
+const decide = (what, id, approve) => act('/decide_' + what, { id, approve }, approve ? (what === 'purchase' ? 'bell' : 'coin') : null);
 const cancelPurchase = id => act('/cancel_purchase', { id });
 const setGoal = reward_id => act('/set_goal', { reward_id });
 const saveStreak = () => act('/save_streak', { days: val('stDays'), bonus: val('stBonus') });
@@ -589,7 +608,7 @@ const addReward = () => act('/add_reward', { name: val('rewName'), cost: val('re
 function del(url, id, question) { if (confirm(question)) act(url, { id }); }
 async function buyReward(reward_id) {
   if (!confirm(T['confirm.buy'])) return;
-  if (await post('/buy_reward', { reward_id })) { alert(T['buy.sent']); location.reload(); }
+  if (await post('/buy_reward', { reward_id })) { play('ding'); toast(T['buy.sent']); setTimeout(() => location.reload(), 1800); }
 }
 
 /* --- значок «новые заявки» у взрослого обновляется раз в 30 секунд --- */
@@ -600,13 +619,104 @@ if (document.getElementById('reqCount')) setInterval(async () => {
   } catch (e) {}
 }, 30000);
 
+/* --- свой фон из галереи: уменьшаем до 1280 px по длинной стороне --- */
+async function uploadBackground(input) {
+  const file = input.files[0]; if (!file) return;
+  try {
+    const img = await createImageBitmap(file), k = Math.min(1, 1280 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(async blob => {
+      const fd = new FormData(); fd.append('file', blob, 'bg.jpg');
+      const j = await (await fetch('/upload_background', { method: 'POST', body: fd })).json();
+      j.success ? location.reload() : alert(j.error);
+    }, 'image/jpeg', 0.8);
+  } catch (e) { alert(T['js.photo_fail']); }
+}
+const removeBackground = () => act('/remove_background', {});
+
+/* --- эффекты: конфетти и звуки (звуки синтезируются в браузере, файлов нет) --- */
+const toast = text => {
+  const d = document.createElement('div'); d.textContent = text;
+  d.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 18px;border-radius:12px;z-index:60;max-width:90vw;text-align:center';
+  document.body.appendChild(d); setTimeout(() => d.remove(), 2600);
+};
+function confetti(opts = {}) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;   // уважаем настройку «меньше анимации»
+  const c = document.createElement('canvas'), dpr = window.devicePixelRatio || 1;
+  c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50';
+  c.width = innerWidth * dpr; c.height = innerHeight * dpr; document.body.appendChild(c);
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const colors = ['#ff6fa5', '#ffd23f', '#3bceac', '#4ea8de', '#a56bff', '#ff7f50'];
+  const ps = Array.from({ length: opts.count || 140 }, () => ({
+    x: innerWidth / 2 + (Math.random() - .5) * innerWidth * .3, y: innerHeight * .4,
+    vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * 6 + 5,
+    a: Math.random() * 6, va: (Math.random() - .5) * .4, c: colors[Math.random() * colors.length | 0], coin: Math.random() < .12 }));
+  const t0 = performance.now();
+  (function frame(t) {
+    g.clearRect(0, 0, innerWidth, innerHeight);
+    ps.forEach(p => {
+      p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.va;
+      g.save(); g.translate(p.x, p.y); g.rotate(p.a);
+      if (p.coin) { g.font = '22px serif'; g.fillText('🪙', -11, 8); } else { g.fillStyle = p.c; g.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * .6); }
+      g.restore();
+    });
+    if (t - t0 < 2800) requestAnimationFrame(frame); else c.remove();
+  })(t0);
+}
+let AC = null;
+const soundOn = () => localStorage.getItem('sound') !== 'off';
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume().catch(() => {});
+  return AC;
+}
+document.addEventListener('pointerdown', audio, { once: true });   // браузер разрешает звук только после первого касания
+function tone(freq, start, dur, type = 'sine', vol = .15) {
+  const a = audio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + start;
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + .05);
+}
+const sounds = {
+  coin() { tone(988, 0, .12, 'square', .07); tone(1319, .09, .4, 'square', .07); },
+  ding() { tone(1568, 0, .5, 'sine', .15); },
+  bell() { [880, 1760, 2640].forEach((f, i) => tone(f, 0, 1.4 / (i + 1), 'sine', .2 / (i + 1))); tone(1320, .4, 1, 'sine', .1); },
+  fanfare() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * .12, .35, 'triangle', .14)); },
+};
+const play = name => { if (soundOn() && sounds[name]) sounds[name](); };
+function toggleSound() {
+  localStorage.setItem('sound', soundOn() ? 'off' : 'on');
+  document.getElementById('soundBtn').textContent = soundOn() ? '🔊' : '🔇';
+  if (soundOn()) play('ding');
+}
+if (document.getElementById('soundBtn')) document.getElementById('soundBtn').textContent = soundOn() ? '🔊' : '🔇';
+
+/* --- кабинет ребёнка: каждые 20 с спрашиваем сервер; выросли монеты, подтвердили покупку или дали достижение — празднуем --- */
+const ME = {{ (me.id if me else None)|tojson }};
+async function checkStatus() {
+  try {
+    const j = await (await fetch('/my_status')).json(); if (!j.success) return;
+    const key = 'seen_' + ME, prev = JSON.parse(localStorage.getItem(key) || 'null');
+    localStorage.setItem(key, JSON.stringify(j));
+    if (!prev) return;
+    let celebrate = false;
+    if (j.buys > prev.buys) { play('bell'); confetti({ count: 90 }); celebrate = true; }
+    else if (j.balance > prev.balance) { play('coin'); confetti(); toast('+' + (j.balance - prev.balance) + ' 🪙'); celebrate = true; }
+    if (j.ach > prev.ach) { setTimeout(() => { play('fanfare'); confetti({ count: 200 }); }, 700); celebrate = true; }
+    if (celebrate) setTimeout(() => location.reload(), 3600);   // обновляем списки и историю
+  } catch (e) {}
+}
+if (document.getElementById('myBalance')) { checkStatus(); setInterval(checkStatus, 20000); }
+
 /* --- подарок другому ребёнку --- */
 async function giftCoins() {
   const sel = document.getElementById('giftTo'), amount = val('giftAmount');
   if (!sel.value || !amount) return;
   const q = T['confirm.gift'].replace('{amount}', amount).replace('{name}', sel.options[sel.selectedIndex].text);
   if (!confirm(q)) return;
-  if (await post('/transfer', { to_id: sel.value, amount })) { alert(T['gift.done']); location.reload(); }
+  if (await post('/transfer', { to_id: sel.value, amount })) { play('coin'); confetti({ count: 60 }); toast(T['gift.done']); setTimeout(() => location.reload(), 1800); }
 }
 
 /* --- достижения (взрослый) --- */

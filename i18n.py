@@ -133,6 +133,12 @@ RU = {
     'log.transfer': '{from_name} дарит {to_name} {amount} 🪙',
     'log.achievement': '{kid} получает достижение «{name}»', 'log.ach_saved': 'Достижение сохранено: «{name}»',
     'log.ach_deleted': 'Достижение удалено: «{name}»',
+
+    # темы, свой фон, звук (v5)
+    'theme.kawaii': '🦄 Kawaii', 'theme.cyberpunk': '🌆 Cyberpunk', 'theme.minecraft': '⛏️ Minecraft',
+    'theme.space': '🚀 Космос', 'theme.unicorn': '🌈 Единороги', 'theme.dino': '🦖 Динозавры', 'theme.sea': '🌊 Море',
+    'theme.custom': '🖼️ Моё фото', 'theme.upload': 'Свой фон из галереи', 'theme.remove': 'Убрать свой фон',
+    'nav.sound': 'Звук', 'log.bg_set': 'Установлен свой фон из фото',
 }
 
 KK = {
@@ -251,6 +257,11 @@ KK = {
     'log.transfer': '{from_name} {to_name} деген балаға {amount} 🪙 сыйлады',
     'log.achievement': '{kid} «{name}» жетістігін алды', 'log.ach_saved': 'Жетістік сақталды: «{name}»',
     'log.ach_deleted': 'Жетістік жойылды: «{name}»',
+
+    'theme.kawaii': '🦄 Kawaii', 'theme.cyberpunk': '🌆 Cyberpunk', 'theme.minecraft': '⛏️ Minecraft',
+    'theme.space': '🚀 Ғарыш', 'theme.unicorn': '🌈 Бірмүйіздер', 'theme.dino': '🦖 Динозаврлар', 'theme.sea': '🌊 Теңіз',
+    'theme.custom': '🖼️ Менің суретім', 'theme.upload': 'Галереядан өз фоным', 'theme.remove': 'Өз фонымды алып тастау',
+    'nav.sound': 'Дыбыс', 'log.bg_set': 'Суреттен өз фоны орнатылды',
 }
 
 STRINGS = {'ru': RU, 'kk': KK}

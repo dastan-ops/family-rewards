@@ -26,7 +26,9 @@ DB_USER = os.environ.get('POSTGRES_USER', 'dastan')
 DB_PASS = os.environ.get('POSTGRES_PASSWORD', 'supersecret')
 UPLOAD_DIR = os.environ.get('UPLOAD_DIR', '/app/uploads')
 TZ = 'Asia/Qyzylorda'
-THEMES = {'kawaii', 'cyberpunk', 'minecraft'}   # + файл static/themes/<имя>.svg и CSS-класс theme-<имя>
+# Новая тема = имя здесь + файл static/themes/<имя>.svg + CSS-класс theme-<имя> + ключ theme.<имя> в i18n.py.
+# Тема 'custom' (своё фото) отдельная: она разрешена только тому, у кого загружен фон.
+THEMES = {'kawaii', 'cyberpunk', 'minecraft', 'space', 'unicorn', 'dino', 'sea'}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -76,6 +78,7 @@ def init_db():
                 cur.execute("ALTER TABLE history ADD COLUMN IF NOT EXISTS action TEXT;")
                 cur.execute("ALTER TABLE history ADD COLUMN IF NOT EXISTS params JSONB;")
                 cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lang VARCHAR(5);")
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bg_img VARCHAR(100);")
                 # расписание задач: daily / weekly (дни в weekdays: 0=Пн … 6=Вс) / once; assignee_id NULL = всем детям
                 cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS kind VARCHAR(10) DEFAULT 'daily';")
                 cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS weekdays VARCHAR(20);")
@@ -585,12 +588,13 @@ def delete_user():
     if uid == session['user_id']:
         raise Bad('err.delete_self')
     with db() as cur:
-        cur.execute("DELETE FROM users WHERE id = %s RETURNING name, avatar_img", (uid,))
+        cur.execute("DELETE FROM users WHERE id = %s RETURNING name, avatar_img, bg_img", (uid,))
         row = cur.fetchone()
         if not row:
             raise Bad('err.user_not_found')
         log(cur, 'log.user_deleted', name=row['name'])
     delete_avatar_file(row['avatar_img'])
+    delete_avatar_file(row['bg_img'])
     return jsonify(success=True)
 
 
@@ -619,14 +623,66 @@ def upload_avatar():
     return jsonify(success=True)
 
 
+@app.route('/upload_background', methods=['POST'])
+@api()
+def upload_background():
+    """Свой фон из фото. Браузер заранее уменьшает снимок (до ~1280 px), здесь только проверка и сохранение."""
+    uid = session['user_id']
+    f = request.files.get('file')
+    raw = f.read() if f else b''
+    if not raw.startswith(b'\xff\xd8'):
+        raise Bad('err.need_photo')
+    filename = f"bg{uid}_{secrets.token_hex(6)}.jpg"   # случайное имя: личное фото не угадать по адресу
+    with open(os.path.join(UPLOAD_DIR, filename), 'wb') as out:
+        out.write(raw)
+    with db() as cur:
+        cur.execute("SELECT bg_img FROM users WHERE id = %s", (uid,))
+        old = cur.fetchone()
+        cur.execute("UPDATE users SET bg_img = %s, theme = 'custom' WHERE id = %s", (filename, uid))
+        log(cur, 'log.bg_set')
+    delete_avatar_file(old['bg_img'] if old else None)
+    return jsonify(success=True)
+
+
+@app.route('/remove_background', methods=['POST'])
+@api()
+def remove_background():
+    uid = session['user_id']
+    with db() as cur:
+        cur.execute("SELECT bg_img FROM users WHERE id = %s", (uid,))
+        old = cur.fetchone()
+        cur.execute("UPDATE users SET bg_img = NULL, theme = CASE WHEN theme = 'custom' THEN 'kawaii' ELSE theme END "
+                    "WHERE id = %s", (uid,))
+    delete_avatar_file(old['bg_img'] if old else None)
+    return jsonify(success=True)
+
+
+@app.route('/my_status')
+@api()
+def my_status():
+    """Лёгкий опрос из кабинета ребёнка: по изменению чисел браузер понимает, когда запускать конфетти и звон."""
+    require_kid()
+    with db() as cur:
+        cur.execute("""SELECT balance,
+                              (SELECT COUNT(*) FROM purchases WHERE user_id = %(u)s AND status = 'approved') AS buys,
+                              (SELECT COUNT(*) FROM user_achievements WHERE user_id = %(u)s) AS ach
+                       FROM users WHERE id = %(u)s""", {'u': session['user_id']})
+        r = cur.fetchone()
+    return jsonify(success=True, balance=r['balance'], buys=r['buys'], ach=r['ach'])
+
+
 @app.route('/update_settings', methods=['POST'])
 @api()
 def update_settings():
     d = body()
     theme = d.get('theme')
-    if theme not in THEMES:
+    if theme not in THEMES and theme != 'custom':
         raise Bad('err.bad_theme')
     with db() as cur:
+        if theme == 'custom':
+            cur.execute("SELECT bg_img FROM users WHERE id = %s", (session['user_id'],))
+            if not cur.fetchone()['bg_img']:
+                raise Bad('err.bad_theme')
         cur.execute("UPDATE users SET theme = %s, dark_mode = %s WHERE id = %s",
                     (theme, bool(d.get('dark_mode')), session['user_id']))
     return jsonify(success=True)

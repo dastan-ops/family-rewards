@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8be4ff"/><stop offset=".5" stop-color="#2c9fe0"/><stop offset="1" stop-color="#0b3d91"/></linearGradient>
+<g id="fish"><ellipse cx="0" cy="0" rx="46" ry="26"/><path d="M40 0 L82 -26 L82 26Z"/><path d="M-6 -24 Q10 -52 30 -22Z" opacity=".8"/><circle cx="-24" cy="-6" r="6" fill="#fff"/><circle cx="-26" cy="-6" r="3" fill="#222"/></g>
+<g id="weed"><path d="M0 0 Q-24 -60 0 -120 Q24 -180 0 -240 Q-6 -200 8 -150 Q30 -90 12 -50 Q6 -20 14 0Z"/></g>
+</defs>
+<rect width="1200" height="800" fill="url(#g)"/>
+<g fill="#fff" opacity=".12"><polygon points="180,0 300,0 560,800 330,800"/><polygon points="520,0 600,0 900,800 740,800"/><polygon points="840,0 900,0 1160,800 1030,800"/></g>
+<path d="M0 70 Q75 40 150 70 T300 70 T450 70 T600 70 T750 70 T900 70 T1050 70 T1200 70 V0 H0Z" fill="#c9f2ff" opacity=".85"/>
+<path d="M0 100 Q75 76 150 100 T300 100 T450 100 T600 100 T750 100 T900 100 T1050 100 T1200 100" fill="none" stroke="#fff" stroke-width="4" opacity=".5"/>
+<g fill="none" stroke="#fff" stroke-width="3" opacity=".6"><circle cx="150" cy="560" r="14"/><circle cx="185" cy="500" r="9"/><circle cx="130" cy="450" r="6"/><circle cx="930" cy="400" r="16"/><circle cx="965" cy="330" r="10"/><circle cx="640" cy="640" r="8"/><circle cx="1080" cy="560" r="7"/></g>
+<g fill="#ff9f43"><use href="#fish" x="300" y="300"/></g><g fill="#feca57"><use href="#fish" x="800" y="230" transform="translate(1600 0) scale(-1 1)"/></g>
+<g fill="#ff6b81" transform="scale(.7)"><use href="#fish" x="1250" y="620"/></g><g fill="#48dbfb" transform="scale(.55)"><use href="#fish" x="560" y="760"/></g>
+<g fill="#7b6cf6" transform="translate(600 480) scale(1.5)"><path d="M-60 0 Q-70 -50 -10 -58 Q50 -62 78 -20 L112 -34 L108 30 L74 14 Q40 52 -20 44 Q-60 36 -60 0Z"/><circle cx="-34" cy="-14" r="7" fill="#fff"/><circle cx="-36" cy="-14" r="3.5" fill="#222"/></g>
+<path d="M0 730 Q220 680 460 730 T900 720 T1200 700 V800 H0Z" fill="#f1d9a0"/><path d="M0 770 Q300 740 640 770 T1200 760 V800 H0Z" fill="#e3c27d"/>
+<g fill="#2ecc71" opacity=".9"><use href="#weed" x="90" y="740"/><use href="#weed" x="150" y="750" transform="translate(300 0) scale(.8)"/><use href="#weed" x="1000" y="740"/><use href="#weed" x="1090" y="750" transform="scale(.8) translate(300 190)"/></g>
+<g><path d="M520 745 Q520 690 550 680 Q540 705 560 710 Q570 680 590 690 Q580 720 560 745Z" fill="#ff6b81"/><path d="M700 745 Q700 700 726 690 Q720 715 740 718 Q752 690 770 702 Q760 728 742 745Z" fill="#ff9f43"/></g>
+<polygon points="360,760 372,738 384,760 408,764 388,778 394,800 372,788 350,800 356,778 336,764" fill="#ff7675" transform="translate(0 -30) scale(.9)"/>
+</svg>
