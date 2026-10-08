@@ -2,6 +2,7 @@ import os
 import re
 import time
 import secrets
+import hashlib
 from datetime import timedelta
 from contextlib import contextmanager
 from functools import wraps
@@ -31,6 +32,24 @@ TZ = 'Asia/Qyzylorda'
 THEMES = {'kawaii', 'cyberpunk', 'minecraft', 'space', 'unicorn', 'dino', 'sea'}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _asset_version(name):
+    """Короткий хеш файла: браузер перезагружает CSS только когда он реально изменился."""
+    try:
+        with open(os.path.join(app.static_folder, name), 'rb') as f:
+            return hashlib.md5(f.read()).hexdigest()[:8]
+    except OSError:
+        return '0'
+
+
+ASSET_V = _asset_version('modern.css')
+
+
+@app.template_filter('noemoji')
+def noemoji(text):
+    """«👪 Участники» → «Участники»: в новом виде перед подписью стоит иконка, а не эмодзи."""
+    return re.sub(r'^[^\w]+', '', text or '')
 
 
 # ---------- БД ----------
@@ -79,6 +98,7 @@ def init_db():
                 cur.execute("ALTER TABLE history ADD COLUMN IF NOT EXISTS params JSONB;")
                 cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS lang VARCHAR(5);")
                 cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bg_img VARCHAR(100);")
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_style VARCHAR(10);")   # NULL = новый вид
                 # расписание задач: daily / weekly (дни в weekdays: 0=Пн … 6=Вс) / once; assignee_id NULL = всем детям
                 cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS kind VARCHAR(10) DEFAULT 'daily';")
                 cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS weekdays VARCHAR(20);")
@@ -528,7 +548,7 @@ def set_lang():
 @app.context_processor
 def inject_i18n():
     lang = cur_lang()
-    return dict(t=tr, lang=lang, langs=LANGS, T=STRINGS[lang])
+    return dict(t=tr, lang=lang, langs=LANGS, T=STRINGS[lang], asset_v=ASSET_V)
 
 
 @app.route('/logout')
@@ -676,15 +696,18 @@ def my_status():
 def update_settings():
     d = body()
     theme = d.get('theme')
+    ui = d.get('ui_style')   # 'modern' / 'classic'; не передан — оставляем как есть
     if theme not in THEMES and theme != 'custom':
         raise Bad('err.bad_theme')
+    if ui not in (None, 'modern', 'classic'):
+        raise Bad('err.bad_data')
     with db() as cur:
         if theme == 'custom':
             cur.execute("SELECT bg_img FROM users WHERE id = %s", (session['user_id'],))
             if not cur.fetchone()['bg_img']:
                 raise Bad('err.bad_theme')
-        cur.execute("UPDATE users SET theme = %s, dark_mode = %s WHERE id = %s",
-                    (theme, bool(d.get('dark_mode')), session['user_id']))
+        cur.execute("UPDATE users SET theme = %s, dark_mode = %s, ui_style = COALESCE(%s, ui_style) WHERE id = %s",
+                    (theme, bool(d.get('dark_mode')), ui, session['user_id']))
     return jsonify(success=True)
 
 

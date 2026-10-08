@@ -139,6 +139,10 @@ RU = {
     'theme.space': '🚀 Космос', 'theme.unicorn': '🌈 Единороги', 'theme.dino': '🦖 Динозавры', 'theme.sea': '🌊 Море',
     'theme.custom': '🖼️ Моё фото', 'theme.upload': 'Свой фон из галереи', 'theme.remove': 'Убрать свой фон',
     'nav.sound': 'Звук', 'log.bg_set': 'Установлен свой фон из фото',
+
+    # новый вид (v6)
+    'ui.title': 'Вид', 'ui.modern': 'Новый', 'ui.classic': 'Классический', 'nav.style': 'Новый / классический вид', 'nav.more': 'Ещё',
+    'knav.home': 'Главная', 'knav.shop': 'Магазин', 'knav.awards': 'Награды', 'knav.look': 'Вид',
 }
 
 KK = {
@@ -262,6 +266,9 @@ KK = {
     'theme.space': '🚀 Ғарыш', 'theme.unicorn': '🌈 Бірмүйіздер', 'theme.dino': '🦖 Динозаврлар', 'theme.sea': '🌊 Теңіз',
     'theme.custom': '🖼️ Менің суретім', 'theme.upload': 'Галереядан өз фоным', 'theme.remove': 'Өз фонымды алып тастау',
     'nav.sound': 'Дыбыс', 'log.bg_set': 'Суреттен өз фоны орнатылды',
+
+    'ui.title': 'Көрініс', 'ui.modern': 'Жаңа', 'ui.classic': 'Классикалық', 'nav.style': 'Жаңа / классикалық көрініс', 'nav.more': 'Тағы',
+    'knav.home': 'Басты', 'knav.shop': 'Дүкен', 'knav.awards': 'Марапаттар', 'knav.look': 'Көрініс',
 }
 
 STRINGS = {'ru': RU, 'kk': KK}

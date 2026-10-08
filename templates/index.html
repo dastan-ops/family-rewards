@@ -1,3 +1,4 @@
+{%- set modern = (not me) or (me.ui_style != 'classic') -%}
 <!DOCTYPE html>
 <html lang="{{ lang }}">
 <head>
@@ -83,6 +84,11 @@ input, select { width:100%; padding:10px; margin-bottom:8px; border:1px solid va
 .pill { font-size:12px; padding:2px 8px; border-radius:10px; background:var(--line); white-space:nowrap; }
 .pill.approved { background:var(--accent); color:#fff; } .pill.rejected { background:#e74c3c; color:#fff; }
 button:disabled { opacity:.45; cursor:not-allowed; }
+.ic, .lbl-m, .more-btn, .kid-nav { display:none; }
+.tabs-more { display:contents; }
+.seg { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+.seg-btn { background:var(--card-bg); color:var(--text-color); border:1px solid var(--line); }
+.seg-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 .lang { display:inline-flex; gap:2px; }
 .lang-btn { color:#fff; border:2px solid transparent; padding:3px 8px; font-size:12px; border-radius:6px; opacity:.55; }
 .lang-btn[data-lang="kk"] { background:#00afca; }   /* небесно-голубой, как на флаге Казахстана */
@@ -90,6 +96,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 .lang-btn.active { opacity:1; border-color:var(--text-color); box-shadow:0 0 0 1px var(--card-bg) inset; }
 label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
 </style>
+{% if modern %}<link rel="stylesheet" href="/static/modern.css?v={{ asset_v }}">{% endif %}
 </head>
 
 {# Аватар: фото, если загружено, иначе эмодзи #}
@@ -100,7 +107,20 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
 
 {% macro lang_switch() %}<span class="lang">{% for code, label in langs.items() %}<button class="lang-btn {{ 'active' if code == lang }}" data-lang="{{ code }}" onclick="setLang('{{ code }}')">{{ label }}</button>{% endfor %}</span>{% endmacro %}
 
+{% macro tabbtn(key, icon, label_key, active=False, badge=False) %}
+<button class="tab-btn{{ ' active' if active }}" data-tab="tab-{{ key }}" onclick="switchTab('tab-{{ key }}')">
+  <svg class="ic" aria-hidden="true"><use href="#i-{{ icon }}"/></svg>
+  <span class="lbl-c">{{ t(label_key) }}</span><span class="lbl-m">{{ t(label_key)|noemoji }}</span>
+  {%- if badge %}<span class="count" id="reqCount" style="{{ '' if pending_count else 'display:none' }}">{{ pending_count }}</span>{% endif %}
+</button>
+{% endmacro %}
+
 {% macro theme_picker(me) %}
+<div class="seg">
+  <span class="muted">{{ t('ui.title') }}:</span>
+  <button class="seg-btn {{ '' if me.ui_style == 'classic' else 'active' }}" onclick="setUi('modern')">{{ t('ui.modern') }}</button>
+  <button class="seg-btn {{ 'active' if me.ui_style == 'classic' }}" onclick="setUi('classic')">{{ t('ui.classic') }}</button>
+</div>
 <div class="themes">
   {% for key in ['kawaii', 'cyberpunk', 'minecraft', 'space', 'unicorn', 'dino', 'sea'] %}
   <div class="theme-tile {{ 'active' if me.theme == key }}" data-theme="{{ key }}"
@@ -118,7 +138,21 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
 {% endmacro %}
 
 {% set theme = ('kawaii' if (me.theme == 'custom' and not me.bg_img) else me.theme) if me else 'kawaii' %}
-<body class="theme-{{ theme }}{{ ' dark-mode' if me and me.dark_mode }}"{% if me and me.bg_img %} style="--custom-bg:url('/avatars/{{ me.bg_img }}')"{% endif %}>
+<body class="theme-{{ theme }}{{ ' dark-mode' if me and me.dark_mode }}{{ (' ui-modern ui-b' if (me and me.role == 'kid') else ' ui-modern ui-a') if modern }}"{% if me and me.bg_img %} style="--custom-bg:url('/avatars/{{ me.bg_img }}')"{% endif %}>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+<symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+<symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+</defs></svg>
 
 {% if not me %}
   <div class="login-container">
@@ -139,6 +173,7 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     </label>
     <div class="right">
       {{ lang_switch() }}
+      <button class="btn-icon" id="uiBtn" onclick="setUi('{{ 'classic' if modern else 'modern' }}')" title="{{ t('nav.style') }}">🖌️</button>
       <button class="btn-icon" id="soundBtn" onclick="toggleSound()" title="{{ t('nav.sound') }}">🔊</button>
       <button class="btn-icon" id="darkBtn" onclick="toggleDark()" title="{{ t('nav.day_night') }}">{{ '☀️' if me.dark_mode else '🌙' }}</button>
       <a href="/logout">{{ t('nav.logout') }}</a>
@@ -147,15 +182,18 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
 
   {% if me.role == 'admin' %}
   <div class="tabs">
-    <button class="tab-btn active" data-tab="tab-members" onclick="switchTab('tab-members')">{{ t('tab.members') }}</button>
-    <button class="tab-btn" data-tab="tab-requests" onclick="switchTab('tab-requests')">{{ t('tab.requests') }}<span class="count" id="reqCount" style="{{ '' if pending_count else 'display:none' }}">{{ pending_count }}</span></button>
-    <button class="tab-btn" data-tab="tab-tasks" onclick="switchTab('tab-tasks')">{{ t('tab.tasks') }}</button>
-    <button class="tab-btn" data-tab="tab-fines" onclick="switchTab('tab-fines')">{{ t('tab.fines') }}</button>
-    <button class="tab-btn" data-tab="tab-shop" onclick="switchTab('tab-shop')">{{ t('tab.shop') }}</button>
-    <button class="tab-btn" data-tab="tab-ach" onclick="switchTab('tab-ach')">{{ t('tab.ach') }}</button>
-    <button class="tab-btn" data-tab="tab-stats" onclick="switchTab('tab-stats')">{{ t('tab.stats') }}</button>
-    <button class="tab-btn" data-tab="tab-history" onclick="switchTab('tab-history')">{{ t('tab.logs') }}</button>
-    <button class="tab-btn" data-tab="tab-look" onclick="switchTab('tab-look')">{{ t('tab.look') }}</button>
+    {{ tabbtn('members', 'users', 'tab.members', True) }}
+    {{ tabbtn('requests', 'inbox', 'tab.requests', False, True) }}
+    {{ tabbtn('tasks', 'list', 'tab.tasks') }}
+    {{ tabbtn('shop', 'bag', 'tab.shop') }}
+    <button class="tab-btn more-btn" onclick="toggleMore()"><svg class="ic" aria-hidden="true"><use href="#i-more"/></svg><span class="lbl-m">{{ t('nav.more') }}</span></button>
+    <div class="tabs-more">
+      {{ tabbtn('fines', 'alert', 'tab.fines') }}
+      {{ tabbtn('ach', 'award', 'tab.ach') }}
+      {{ tabbtn('stats', 'chart', 'tab.stats') }}
+      {{ tabbtn('history', 'file', 'tab.logs') }}
+      {{ tabbtn('look', 'sliders', 'tab.look') }}
+    </div>
   </div>
 
   <!-- УЧАСТНИКИ -->
@@ -417,7 +455,8 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
   {% else %}
   <!-- КАБИНЕТ РЕБЁНКА -->
   {% set free = me.balance - reserved %}
-  <div class="card" style="text-align:center;padding:26px">
+  <div class="kid-sec active" data-sec="home">
+  <div class="card kid-hero" style="text-align:center;padding:26px">
     <label style="cursor:pointer" title="{{ t('nav.change_photo') }}">{{ av(me, 96) }}
       <input type="file" accept="image/*" hidden onchange="uploadAvatar(this, null)"></label>
     <h2 style="margin:8px 0 0">{{ t('kid.my_safe') }}</h2>
@@ -452,6 +491,8 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     {% else %}<div class="muted">{{ t('kid.tasks_empty') }}</div>{% endfor %}
   </div>
 
+  </div>
+  <div class="kid-sec" data-sec="shop">
   <div class="card">
     <h3>{{ t('kid.shop_title') }}</h3>
     {% for r in rewards %}
@@ -476,6 +517,20 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     {% else %}<div class="muted">{{ t('gift.no_kids') }}</div>{% endif %}
   </div>
 
+  {% if my_requests %}
+  <div class="card">
+    <h3>{{ t('kid.my_requests') }}</h3>
+    {% for r in my_requests %}
+    <div class="list-row" style="font-size:14px">
+      <div>{{ r.icon }} {{ r.name }} <b>{{ '+' if r.type == 'task' else '−' }}{{ r.amount }} 🪙</b><br><span class="muted">{{ r.ts }}</span></div>
+      <div><span class="pill {{ r.status }}">{{ t('state.' ~ r.status) }}</span>
+        {% if r.type == 'buy' and r.status == 'pending' %}<button class="btn-gray" style="font-size:12px" onclick="cancelPurchase({{ r.id }})">{{ t('btn.cancel') }}</button>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  </div>
+  <div class="kid-sec" data-sec="awards">
   <div class="card">
     <h3>{{ t('ach.mine') }}</h3>
     <div class="badges">
@@ -498,20 +553,17 @@ label.field { font-size:12px; opacity:.7; display:block; margin-bottom:2px; }
     {% else %}<div class="muted">{{ t('hist.empty') }}</div>{% endfor %}
   </div>
 
-  {% if my_requests %}
-  <div class="card">
-    <h3>{{ t('kid.my_requests') }}</h3>
-    {% for r in my_requests %}
-    <div class="list-row" style="font-size:14px">
-      <div>{{ r.icon }} {{ r.name }} <b>{{ '+' if r.type == 'task' else '−' }}{{ r.amount }} 🪙</b><br><span class="muted">{{ r.ts }}</span></div>
-      <div><span class="pill {{ r.status }}">{{ t('state.' ~ r.status) }}</span>
-        {% if r.type == 'buy' and r.status == 'pending' %}<button class="btn-gray" style="font-size:12px" onclick="cancelPurchase({{ r.id }})">{{ t('btn.cancel') }}</button>{% endif %}</div>
-    </div>
-    {% endfor %}
   </div>
-  {% endif %}
+  <div class="kid-sec" data-sec="look">
   <div class="card"><h3>{{ t('look.title') }}</h3>{{ theme_picker(me) }}
     <p class="muted">{{ t('look.hint') }}</p></div>
+  </div>
+  <nav class="kid-nav">
+    <button class="active" data-sec="home" onclick="kidTab('home')"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg>{{ t('knav.home') }}</button>
+    <button data-sec="shop" onclick="kidTab('shop')"><svg class="ic" aria-hidden="true"><use href="#i-bag"/></svg>{{ t('knav.shop') }}</button>
+    <button data-sec="awards" onclick="kidTab('awards')"><svg class="ic" aria-hidden="true"><use href="#i-award"/></svg>{{ t('knav.awards') }}</button>
+    <button data-sec="look" onclick="kidTab('look')"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>{{ t('knav.look') }}</button>
+  </nav>
   {% endif %}
 {% endif %}
 
@@ -539,8 +591,20 @@ function switchTab(id) {
   document.querySelectorAll('.tab-content').forEach(e => e.classList.toggle('active', e.id === id));
   document.querySelectorAll('.tab-btn').forEach(e => e.classList.toggle('active', e.dataset.tab === id));
   sessionStorage.setItem('tab', id);
+  const more = document.querySelector('.tabs-more'); if (more) more.classList.remove('open');
 }
 if (document.querySelector('.tabs') && sessionStorage.getItem('tab') && document.getElementById(sessionStorage.getItem('tab'))) switchTab(sessionStorage.getItem('tab'));
+
+/* --- новый вид: меню «Ещё» у взрослых, разделы и нижняя панель у детей, переключатель вида --- */
+const toggleMore = () => document.querySelector('.tabs-more').classList.toggle('open');
+document.addEventListener('click', e => { const m = document.querySelector('.tabs-more'); if (m && !e.target.closest('.tabs')) m.classList.remove('open'); });
+function kidTab(name) {
+  document.querySelectorAll('.kid-sec').forEach(e => e.classList.toggle('active', e.dataset.sec === name));
+  document.querySelectorAll('.kid-nav button').forEach(e => e.classList.toggle('active', e.dataset.sec === name));
+  sessionStorage.setItem('ktab', name); window.scrollTo(0, 0);
+}
+{ const k = sessionStorage.getItem('ktab'); if (k && document.querySelector('.kid-sec[data-sec="' + k + '"]')) kidTab(k); }
+async function setUi(v) { if (await post('/update_settings', { theme: state.theme, dark_mode: state.dark, ui_style: v })) location.reload(); }
 
 /* --- оформление: применяется сразу, без перезагрузки --- */
 function saveLook() { post('/update_settings', { theme: state.theme, dark_mode: state.dark }); }

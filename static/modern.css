@@ -1,0 +1,119 @@
+/* Family Rewards — новый вид.
+   Подключается только когда у пользователя ui_style != 'classic'. Классический вид этим файлом не затрагивается.
+   Вариант A (взрослые): мягкий минимализм.  Вариант B (дети): яркая игра.
+   Цвета и размеры — в переменных, внизу каждого блока видно, что менять. */
+
+/* ===== Общее для обоих вариантов ===== */
+body.ui-modern { font-size:16px; line-height:1.45; -webkit-font-smoothing:antialiased; padding:12px 12px 100px; }
+body.ui-modern h2, body.ui-modern h3 { letter-spacing:-.01em; margin:0 0 10px; }
+body.ui-modern .muted { opacity:1; color:var(--muted); font-size:13px; }
+body.ui-modern .card, body.ui-modern .nav-bar { background:var(--card-bg); }
+body.ui-modern .nav-bar { border-radius:var(--r); box-shadow:none; }
+body.ui-modern .nav-bar a { color:var(--bad); font-weight:500; text-decoration:none; font-size:14px; }
+body.ui-modern .btn-icon { font-size:20px; padding:4px 6px; border-radius:10px; box-shadow:none; }
+body.ui-modern input, body.ui-modern select { background:var(--field-bg); color:var(--text-color); border:1px solid var(--line); border-radius:12px; padding:11px 12px; font-size:16px; }
+body.ui-modern input:focus, body.ui-modern select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+body.ui-modern .list-row { border-bottom:1px solid var(--line); padding:12px 0; }
+body.ui-modern .list-row:last-child { border-bottom:none; }
+body.ui-modern .btn-green { background:var(--ok); }
+body.ui-modern .btn-red { background:var(--bad); }
+body.ui-modern .btn-blue { background:var(--primary); }
+body.ui-modern .btn-gray { background:var(--soft); color:var(--text-color); }
+body.ui-modern .btn-main { background:var(--ok); border-radius:16px; }
+body.ui-modern .member { border:1px solid var(--line); border-radius:16px; background:var(--field-bg); }
+body.ui-modern .badge { background:var(--soft); color:var(--text-color); font-weight:500; }
+body.ui-modern .pill { background:var(--soft); color:var(--text-color); }
+body.ui-modern .pill.approved { background:var(--ok); color:#fff; }
+body.ui-modern .pill.rejected { background:var(--bad); color:#fff; }
+body.ui-modern .bar { height:10px; background:var(--soft); border-radius:10px; }
+body.ui-modern .bar > i { background:var(--ok); border-radius:10px; }
+body.ui-modern .theme-tile { border-radius:16px; border-width:3px; }
+body.ui-modern .ach-item { border:1px solid var(--line); border-radius:16px; background:var(--field-bg); }
+body.ui-modern .seg-btn { background:var(--soft); color:var(--text-color); border:1px solid transparent; border-radius:10px; }
+body.ui-modern .seg-btn.active { background:var(--accent); color:#fff; }
+body.ui-modern .chart-btn { background:var(--soft); color:var(--text-color); border-radius:10px; border-color:transparent; }
+body.ui-modern .chart-btn.active { background:var(--accent); color:#fff; }
+body.ui-modern .lang-btn { border-radius:8px; }
+body.ui-modern .count { background:var(--bad); }
+body.ui-modern .modal .card { border-radius:22px; }
+body.ui-modern .login-card { background:var(--card-bg); border:1px solid var(--line); border-top-width:1px; border-radius:26px; padding:30px 24px; }
+body.ui-modern .login-card input { letter-spacing:8px; border-radius:16px; }
+
+/* Иконки из спрайта в index.html */
+body.ui-modern .ic { display:inline-block; width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+body.ui-modern .lbl-c { display:none; }
+body.ui-modern .lbl-m { display:inline; }
+
+/* ===== Нижняя панель вкладок (взрослые на телефоне) ===== */
+body.ui-modern .tabs { position:fixed; left:0; right:0; bottom:0; z-index:30; margin:0; gap:0; overflow:visible; justify-content:space-around;
+  padding:6px 6px calc(6px + env(safe-area-inset-bottom)); background:var(--card-bg); border-top:1px solid var(--line); }
+body.ui-modern .tab-btn { position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; min-width:0;
+  background:none; border:none; box-shadow:none; color:var(--muted); font-size:11px; font-weight:500; padding:6px 2px; border-radius:12px; white-space:nowrap; }
+body.ui-modern .tab-btn.active { color:var(--accent); background:var(--soft); }
+body.ui-modern .tab-btn .count { position:absolute; top:0; right:18%; font-size:11px; margin:0; }
+body.ui-modern .more-btn { display:flex; }
+body.ui-modern .tabs-more { display:none; position:fixed; right:8px; bottom:calc(66px + env(safe-area-inset-bottom)); z-index:31; flex-direction:column; gap:2px;
+  min-width:200px; padding:6px; background:var(--card-bg); border:1px solid var(--line); border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.18); }
+body.ui-modern .tabs-more.open { display:flex; }
+body.ui-modern .tabs-more .tab-btn { flex-direction:row; justify-content:flex-start; gap:12px; font-size:15px; padding:11px 12px; }
+
+/* ===== Вариант A: взрослые, мягкий минимализм ===== */
+body.ui-a { --card-bg:#ffffff; --text-color:#1b1f3b; --muted:#6b7194; --line:#e6e8f0; --soft:#eceef7; --field-bg:#f6f7fb;
+  --accent:#5b6cff; --primary:#5b6cff; --ok:#17a673; --bad:#e5484d; --veil:rgba(246,247,251,.88); --r:18px;
+  font-family:system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; max-width:1000px; }
+body.ui-a.dark-mode { --card-bg:#1c1f2b; --text-color:#e8eaf2; --muted:#8a90a8; --line:#2a2f45; --soft:#2a2f45; --field-bg:#14161f;
+  --accent:#7c8bff; --primary:#7c8bff; --ok:#2fbf8a; --bad:#ff6b70; --veil:rgba(18,20,28,.9); }
+body.ui-a .card { border:1px solid var(--line); border-radius:var(--r); box-shadow:none; padding:18px; }
+body.ui-a .nav-bar { border:1px solid var(--line); position:sticky; top:8px; z-index:25; }
+body.ui-a button, body.ui-a .btn { border-radius:12px; font-weight:500; padding:9px 14px; }
+body.ui-a .btn-icon, body.ui-a .tab-btn, body.ui-a .lang-btn, body.ui-a .seg-btn, body.ui-a .chart-btn { padding-left:6px; padding-right:6px; }
+body.ui-a .seg-btn, body.ui-a .chart-btn { padding:7px 14px; }
+body.ui-a .coins { color:var(--accent); font-weight:500; }
+body.ui-a .list-row b { font-weight:500; }
+
+/* На компьютере у взрослых меню слева, все пункты видны сразу */
+@media (min-width:900px) {
+  body.ui-a { padding-left:236px; padding-bottom:32px; }
+  body.ui-a .tabs { left:max(12px, calc((100vw - 1000px) / 2 + 12px)); right:auto; top:96px; bottom:auto; width:208px; flex-direction:column;
+    justify-content:flex-start; gap:2px; padding:8px; border:1px solid var(--line); border-radius:var(--r); }
+  body.ui-a .tab-btn { flex:none; flex-direction:row; justify-content:flex-start; gap:12px; font-size:15px; padding:10px 12px; }
+  body.ui-a .tab-btn .count { position:static; margin-left:auto; }
+  body.ui-a .tabs-more { display:contents; }
+  body.ui-a .more-btn { display:none; }
+}
+
+/* ===== Вариант B: дети, яркая игра ===== */
+body.ui-b { --card-bg:rgba(255,255,255,.94); --text-color:#4a3200; --muted:#8a6a1e; --line:#f2e2bc; --soft:#fff1c9; --field-bg:#fffdf5;
+  --ok:#58cc02; --bad:#ff4b4b; --coin:#ff9f1c; --veil:rgba(255,247,230,.4); --r:22px;
+  font-family:ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, sans-serif; max-width:640px; }
+body.ui-b.dark-mode { --card-bg:rgba(32,27,44,.94); --text-color:#fff4d6; --muted:#cbb67f; --line:#3d3556; --soft:#342d4a; --field-bg:#171421; --veil:rgba(10,8,20,.6); }
+body.ui-b h2, body.ui-b h3 { font-weight:800; }
+body.ui-b .card { border:2px solid var(--line); border-bottom-width:5px; border-radius:var(--r); box-shadow:none; padding:18px; }
+body.ui-b .nav-bar { border:2px solid var(--line); border-bottom-width:5px; }
+body.ui-b input, body.ui-b select { border-width:2px; border-radius:14px; }
+body.ui-b .btn-main, body.ui-b .btn-green, body.ui-b .btn-red, body.ui-b .btn-blue, body.ui-b .btn-gray, body.ui-b label.btn {
+  border-radius:14px; font-weight:800; padding:10px 16px; box-shadow:0 4px 0 rgba(0,0,0,.22); transition:transform .08s, box-shadow .08s; }
+body.ui-b .btn-main:active, body.ui-b .btn-green:active, body.ui-b .btn-red:active, body.ui-b .btn-blue:active, body.ui-b .btn-gray:active {
+  transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.22); }
+body.ui-b button:disabled { box-shadow:none; transform:none; }
+body.ui-b .coins { color:var(--coin); font-weight:900; }
+body.ui-b .kid-hero { background:#ffc93c; border-color:#e0a800; color:#4a2a00; }
+body.ui-b .kid-hero h2, body.ui-b .kid-hero .coins { color:#4a2a00; }
+body.ui-b .kid-hero .muted { color:#7a5200; }
+body.ui-b .kid-hero .coins { font-size:64px !important; line-height:1.1; }
+body.ui-b .bar { height:16px; }
+body.ui-b .list-row b { font-weight:800; }
+body.ui-b .ach-item { border-width:2px; }
+body.ui-b .theme-tile { border-width:4px; }
+
+/* Нижняя панель ребёнка и переключение разделов */
+.kid-nav { display:none; }
+body.ui-b .kid-nav { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:30; gap:6px; padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:var(--card-bg); border-top:2px solid var(--line); }
+body.ui-b .kid-nav button { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; background:transparent; color:var(--muted);
+  font-size:12px; font-weight:800; padding:6px 2px; border-radius:14px; box-shadow:none; }
+body.ui-b .kid-nav button.active { background:var(--soft); color:var(--accent); }
+body.ui-b .kid-sec { display:none; }
+body.ui-b .kid-sec.active { display:block; animation:kid-pop .25s ease-out; }
+@keyframes kid-pop { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { body.ui-b .kid-sec.active { animation:none; } }
